@@ -10,7 +10,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS } from '../constants/Colors';
-import { FONTS, FONT_SIZES } from '../constants/Fonts';
+import { THEME } from '../constants/Themes';
 import CategoryMapper from '../utils/CategoryMapper';
 
 const CategorySelectionModal = ({
@@ -32,22 +32,22 @@ const CategorySelectionModal = ({
                     <TouchableWithoutFeedback>
                         <View style={[styles.modalContent, { backgroundColor: theme.card }]}>
 
-                            {/* Handle Bar - Consistency with Filter Modal */}
+                            {/* Handle Bar - Using layout.bottomSheetHandle */}
                             <View style={[styles.handle, { backgroundColor: theme.border }]} />
 
                             <View style={styles.modalHeader}>
-                                <Text style={[styles.modalTitle, { color: theme.text, fontFamily: FONTS.bold }]}>
+                                <Text style={[styles.modalTitle, { color: theme.text, fontWeight: THEME.fontWeight.bold }]}>
                                     Add Category
                                 </Text>
                                 <TouchableOpacity onPress={onClose}>
-                                    <Ionicons name="close-circle" size={28} color={theme.textTertiary} />
+                                    <Ionicons name="close-circle" size={THEME.sizes.icon.lg} color={theme.textTertiary} />
                                 </TouchableOpacity>
                             </View>
 
                             <ScrollView
                                 showsVerticalScrollIndicator={false}
                                 style={styles.modalScroll}
-                                contentContainerStyle={{ paddingBottom: 40 }}
+                                contentContainerStyle={{ paddingBottom: THEME.spacing[5] }}
                             >
                                 {availableCategories.map((categoryName) => {
                                     const details = CategoryMapper.getCategoryDetails(categoryName);
@@ -59,15 +59,15 @@ const CategorySelectionModal = ({
                                             onPress={() => onSelectCategory(categoryName)}
                                         >
                                             <View style={[styles.categoryOptionIcon, { backgroundColor: details.color + '15' }]}>
-                                                <Ionicons name={details.icon} size={24} color={details.color} />
+                                                <Ionicons name={details.icon} size={THEME.sizes.icon.md} color={details.color} />
                                             </View>
 
-                                            <Text style={[styles.categoryOptionText, { color: theme.text, fontFamily: FONTS.semiBold }]}>
+                                            <Text style={[styles.categoryOptionText, { color: theme.text, fontWeight: THEME.fontWeight.semibold }]}>
                                                 {categoryName}
                                             </Text>
 
                                             <View style={[styles.addButton, { backgroundColor: COLORS.primary + '90' }]}>
-                                                <Ionicons name="add" size={20} color={COLORS.textTertiary} />
+                                                <Ionicons name="add" size={THEME.sizes.icon.sm} color={COLORS.textTertiary} />
                                             </View>
                                         </TouchableOpacity>
                                     );
@@ -88,56 +88,55 @@ const styles = StyleSheet.create({
         justifyContent: 'flex-end',
     },
     modalContent: {
-        borderTopLeftRadius: 32, // Increased for that smoother curve
-        borderTopRightRadius: 32,
-        paddingHorizontal: 20,
-        maxHeight: '80%', // Slightly more room for category lists
+        borderTopLeftRadius: THEME.borderRadius['2xl'], // 32px
+        borderTopRightRadius: THEME.borderRadius['2xl'], // 32px
+        paddingHorizontal: THEME.layout.screenPadding, // 16px
+        maxHeight: '80%',
     },
     handle: {
-        width: 40,
+        width: THEME.layout.bottomSheetHandle, // 24px
         height: 5,
-        borderRadius: 3,
+        borderRadius: THEME.borderRadius.pill,
         alignSelf: 'center',
-        marginTop: 12,
-        marginBottom: 20,
+        marginTop: THEME.spacing[1] + 4, // 12px
+        marginBottom: THEME.spacing[3], // 24px
     },
     modalHeader: {
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
-        marginBottom: 25,
+        marginBottom: THEME.spacing[3] + 1, // ~25px
     },
     modalTitle: {
-        fontSize: FONT_SIZES.xl
+        fontSize: THEME.fontSize.xl, // 22px
     },
     modalScroll: {
-        marginBottom: 10
+        marginBottom: THEME.spacing[1] + 2, // ~10px
     },
     categoryOption: {
         flexDirection: 'row',
         alignItems: 'center',
-        padding: 14,
-        borderRadius: 20, // Chonkier corners
-        marginBottom: 12,
-        borderWidth: 1, // Added border to match action cards
-        gap: 15,
+        padding: THEME.spacing[2] - 2, // 14px
+        borderRadius: THEME.borderRadius['2xl'] - 12, // 20px
+        marginBottom: THEME.spacing[1] + 4, // 12px
+        borderWidth: 1,
+        gap: THEME.spacing[2] - 1, // 15px
     },
     categoryOptionIcon: {
-        width: 48,
-        height: 48,
-        borderRadius: 14,
+        width: THEME.sizes.avatar.md, // 48px
+        height: THEME.sizes.avatar.md, // 48px
+        borderRadius: THEME.borderRadius.lg - 2, // 14px
         justifyContent: 'center',
         alignItems: 'center',
     },
     categoryOptionText: {
         flex: 1,
-        fontSize: 16,
+        fontSize: THEME.fontSize.sm + 1, // ~16px
     },
-
     addButton: {
-        width: 32,
-        height: 32,
-        borderRadius: 10,
+        width: THEME.sizes.avatar.xs, // 32px
+        height: THEME.sizes.avatar.xs, // 32px
+        borderRadius: THEME.borderRadius.md - 2, // 10px
         justifyContent: 'center',
         alignItems: 'center',
     },

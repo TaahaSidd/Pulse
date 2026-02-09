@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
     Modal,
     View,
@@ -12,8 +12,18 @@ import { COLORS } from '../constants/Colors';
 import { FONTS, FONT_SIZES } from '../constants/Fonts';
 
 export default function MonthYearPicker({ visible, onClose, selectedDate, onSelect, theme }) {
-    const [viewYear, setViewYear] = useState(selectedDate.getFullYear());
+    const START_YEAR = 2026;
     const today = new Date();
+    const currentYear = today.getFullYear();
+
+
+    const [viewYear, setViewYear] = useState(selectedDate.getFullYear());
+
+
+    useEffect(() => {
+        const year = selectedDate.getFullYear();
+        setViewYear(year < START_YEAR ? START_YEAR : year);
+    }, [selectedDate, visible]);
 
     const months = [
         'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
@@ -23,37 +33,44 @@ export default function MonthYearPicker({ visible, onClose, selectedDate, onSele
     const handleMonthSelect = (monthIndex) => {
         const newDate = setMonth(setYear(new Date(selectedDate), viewYear), monthIndex);
 
-        // Final safety check: don't select if it's somehow clicked
+        // Safety: Don't allow future months OR years before launch
         if (isAfter(startOfMonth(newDate), startOfMonth(today))) return;
+        if (newDate.getFullYear() < START_YEAR) return;
 
         onSelect(newDate);
         onClose();
     };
 
-    const changeYear = (offset) => setViewYear(prev => prev + offset);
+    const changeYear = (offset) => {
+        const nextYear = viewYear + offset;
+        // Block navigation if it goes before 2026 or past current year
+        if (nextYear < START_YEAR || nextYear > currentYear) return;
+        setViewYear(nextYear);
+    };
 
     return (
         <Modal visible={visible} transparent animationType="fade">
-            <TouchableOpacity
-                style={styles.overlay}
-                activeOpacity={1}
-                onPress={onClose}
-            >
+            <TouchableOpacity style={styles.overlay} activeOpacity={1} onPress={onClose}>
                 <View style={[styles.content, { backgroundColor: theme.cardElevated }]}>
 
                     {/* YEAR SELECTOR */}
                     <View style={styles.yearHeader}>
-                        <TouchableOpacity onPress={() => changeYear(-1)} style={styles.arrowBtn}>
+                        {/* BACK ARROW - Disabled if at 2026 */}
+                        <TouchableOpacity
+                            onPress={() => changeYear(-1)}
+                            style={[styles.arrowBtn, viewYear <= START_YEAR && { opacity: 0.2 }]}
+                            disabled={viewYear <= START_YEAR}
+                        >
                             <Ionicons name="chevron-back" size={24} color={theme.text} />
                         </TouchableOpacity>
 
                         <Text style={[styles.yearText, { color: theme.text }]}>{viewYear}</Text>
 
-                        {/* Disable forward year if viewYear is already current year */}
+                        {/* FORWARD ARROW - Disabled if at current year */}
                         <TouchableOpacity
                             onPress={() => changeYear(1)}
-                            style={[styles.arrowBtn, viewYear >= today.getFullYear() && { opacity: 0.2 }]}
-                            disabled={viewYear >= today.getFullYear()}
+                            style={[styles.arrowBtn, viewYear >= currentYear && { opacity: 0.2 }]}
+                            disabled={viewYear >= currentYear}
                         >
                             <Ionicons name="chevron-forward" size={24} color={theme.text} />
                         </TouchableOpacity>
@@ -64,6 +81,8 @@ export default function MonthYearPicker({ visible, onClose, selectedDate, onSele
                         {months.map((month, index) => {
                             const itemDate = setMonth(setYear(new Date(), viewYear), index);
                             const isFuture = isAfter(startOfMonth(itemDate), startOfMonth(today));
+                            const isBeforeLaunch = viewYear === START_YEAR && isFuture; // Adjust if launch is mid-2026
+
                             const isSelected =
                                 selectedDate.getFullYear() === viewYear &&
                                 selectedDate.getMonth() === index;
@@ -75,14 +94,15 @@ export default function MonthYearPicker({ visible, onClose, selectedDate, onSele
                                     style={[
                                         styles.monthItem,
                                         isSelected && { backgroundColor: COLORS.primary },
-                                        isFuture && { opacity: 0.15 } // Faded out for future months
+                                        isFuture && { opacity: 0.15 }
                                     ]}
                                     onPress={() => handleMonthSelect(index)}
                                 >
                                     <Text style={[
                                         styles.monthText,
                                         { color: isSelected ? '#000' : theme.textSecondary },
-                                        isSelected && { fontFamily: FONTS.bold }
+                                        isSelected && { fontFamily: FONTS.bold },
+                                        { includeFontPadding: false, textAlignVertical: 'center' } // Fix centering
                                     ]}>
                                         {month}
                                     </Text>

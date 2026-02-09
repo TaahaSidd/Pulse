@@ -3,11 +3,10 @@ import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { format } from 'date-fns';
 import { FONT_SIZES, FONTS } from '../constants/Fonts';
-import { COLORS } from '../constants/Colors';
 
 export default function ScreenHeader({
-    // common
-    mode = 'simple',         // 'simple' | 'month'
+
+    mode = 'simple',
     theme,
     title,
     showBack = false,
@@ -17,19 +16,19 @@ export default function ScreenHeader({
 
     // month mode
     selectedDate,
-    onPrevMonth,
-    onNextMonth,
-    isNextDisabled = false,
     onOpenMonthPicker,
 }) {
     if (mode === 'month') {
         return (
             <View style={styles.header}>
-                <TouchableOpacity onPress={onPrevMonth}>
-                    <Ionicons name="chevron-back" size={28} color={theme.text} />
-                </TouchableOpacity>
+                {/* Left Spacer for alignment */}
+                <View style={{ width: 28 }} />
 
-                <TouchableOpacity style={styles.monthSelector} onPress={onOpenMonthPicker}>
+                <TouchableOpacity
+                    style={styles.monthSelector}
+                    onPress={onOpenMonthPicker}
+                    activeOpacity={0.7}
+                >
                     <Text
                         style={[
                             styles.monthText,
@@ -41,13 +40,8 @@ export default function ScreenHeader({
                     <Ionicons name="chevron-down" size={20} color={theme.textSecondary} />
                 </TouchableOpacity>
 
-                <TouchableOpacity
-                    onPress={onNextMonth}
-                    disabled={isNextDisabled}
-                    style={{ opacity: isNextDisabled ? 0.3 : 1 }}
-                >
-                    <Ionicons name="chevron-forward" size={28} color={theme.text} />
-                </TouchableOpacity>
+                {/* Right Spacer for alignment */}
+                <View style={{ width: 28 }} />
             </View>
         );
     }
@@ -90,9 +84,14 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         paddingTop: 60,
         paddingHorizontal: 20,
-        paddingBottom: 15,
+        paddingBottom: 20,
     },
-    monthSelector: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+    monthSelector: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 6,
+        // Optional: add a slight background or border if you want it to look more like a button
+    },
     monthText: { fontSize: FONT_SIZES.xl },
     titleText: { fontSize: FONT_SIZES.xl },
 });

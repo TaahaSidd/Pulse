@@ -2,7 +2,7 @@ import React from 'react';
 import { View, Text, Modal, StyleSheet } from 'react-native';
 import { getThemedColors, COLORS } from '../constants/Colors';
 import { FONTS } from '../constants/Fonts';
-import Button from './Button'; // Import your new Button
+import Button from './Button';
 
 const PulseModal = ({
     visible,
@@ -26,7 +26,7 @@ const PulseModal = ({
                     message: message || "We'll keep your pulse steady while you're gone.",
                     primaryButtonText: primaryButtonText || 'Log Out',
                     secondaryButtonText: secondaryButtonText || 'Go Back',
-                    variant: 'secondary', // Uses that clean Dark/Charcoal look
+                    variant: 'secondary',
                 };
             case 'delete':
                 return {
@@ -34,13 +34,13 @@ const PulseModal = ({
                     message: message || 'This action is permanent. Are you absolutely sure?',
                     primaryButtonText: primaryButtonText || 'Delete',
                     secondaryButtonText: secondaryButtonText || 'Cancel',
-                    variant: 'danger', // Uses the soft red tint
+                    variant: 'danger',
                 };
-            default: // success or info
+            default:
                 return {
-                    title: title || 'Awesome! ✨',
+                    title: title || 'Awesome!',
                     primaryButtonText: primaryButtonText || 'Continue',
-                    variant: 'primary', // Pulse Green
+                    variant: 'primary',
                     showSecondary: false,
                 };
         }
@@ -66,7 +66,7 @@ const PulseModal = ({
                     </View>
 
                     <View style={styles.footer}>
-                        {/* Primary Action using your new Button Component */}
+
                         <Button
                             title={config.primaryButtonText}
                             variant={config.variant}
@@ -74,14 +74,13 @@ const PulseModal = ({
                             fullWidth
                         />
 
-                        {/* Secondary Action using Ghost variant for ultimate cleanness */}
                         {(onSecondaryPress || config.secondaryButtonText) && (
                             <Button
                                 title={config.secondaryButtonText}
                                 variant="ghost"
                                 onPress={onSecondaryPress || onClose}
                                 fullWidth
-                                textStyle={{ color: theme.textTertiary }} // Keeps it subtle
+                                textStyle={{ color: theme.textTertiary }}
                             />
                         )}
                     </View>
