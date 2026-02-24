@@ -66,7 +66,6 @@ export default function SpendingPulseChart({ dailyMap, selectedDate, theme }) {
     return (
         <View style={styles.container}>
             <View style={styles.header}>
-                {/* --- Replaced old toggle with SegmentedFilter --- */}
                 <View style={{ width: 150 }}>
                     <SegmentedFilter
                         options={['Weekly', 'Daily']}
@@ -139,7 +138,7 @@ const styles = StyleSheet.create({
     header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 },
     statSmall: { fontSize: FONT_SIZES.xs, fontFamily: FONTS.regular, marginBottom: 2 },
     statBig: { fontFamily: FONTS.bold, fontSize: FONT_SIZES.lg },
-    chartCard: { borderRadius: 24, padding: 14 },
+    chartCard: { borderRadius: 24, padding: 14, paddingTop: 40 },
     chartRow: {
         flexDirection: 'row',
         alignItems: 'stretch',
@@ -153,7 +152,7 @@ const styles = StyleSheet.create({
     barCol: {
         flexDirection: 'column',
     },
-    bar: { borderRadius: 6, minHeight: 3 },
+    bar: { borderRadius: 12, minHeight: 4 },
     xLabel: { fontSize: 10, fontFamily: FONTS.regular, marginTop: 4, textAlign: 'center', height: X_LABEL_H },
     empty: { height: 160, alignItems: 'center', justifyContent: 'center' },
     emptyText: { fontFamily: FONTS.regular },

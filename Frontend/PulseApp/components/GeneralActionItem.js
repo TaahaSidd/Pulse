@@ -5,9 +5,9 @@ import { FONTS } from '../constants/Fonts';
 
 const GeneralActionItem = ({
     label,
-    subtitle,      // 🆕 Added
-    icon,          // 🆕 Added
-    iconColor,     // 🆕 Added
+    subtitle,
+    icon,
+    iconColor,
     onPress,
     isLast = false,
     isDestructive = false,
@@ -27,20 +27,26 @@ const GeneralActionItem = ({
         >
             <View style={styles.leftContainer}>
                 {icon && (
-                    <View style={[styles.iconWrapper, { backgroundColor: (iconColor || theme.text) + '15' }]}>
-                        <Ionicons name={icon} size={20} color={iconColor || theme.text} />
+                    <View style={[styles.iconWrapper, { backgroundColor: (iconColor || theme.text) + '10' }]}>
+                        <Ionicons name={icon} size={18} color={iconColor || theme.text} />
                     </View>
                 )}
 
                 <View style={styles.textContainer}>
-                    <Text style={[
-                        styles.actionLabel,
-                        { color: isDestructive ? "#EF4444" : theme.text, fontFamily: FONTS.semiBold }
-                    ]}>
+                    <Text
+                        numberOfLines={1}
+                        style={[
+                            styles.actionLabel,
+                            { color: isDestructive ? "#EF4444" : theme.text, fontFamily: FONTS.semiBold }
+                        ]}
+                    >
                         {label}
                     </Text>
                     {subtitle && (
-                        <Text style={[styles.subtitle, { color: theme.textTertiary, fontFamily: FONTS.regular }]}>
+                        <Text
+                            numberOfLines={1}
+                            style={[styles.subtitle, { color: theme.textTertiary, fontFamily: FONTS.regular }]}
+                        >
                             {subtitle}
                         </Text>
                     )}
@@ -48,13 +54,9 @@ const GeneralActionItem = ({
             </View>
 
             <View style={styles.rightSide}>
-                {rightComponent ? (
-                    rightComponent
-                ) : (
-                    !isDestructive && (
-                        <Ionicons name="chevron-forward" size={18} color={theme.textTertiary} />
-                    )
-                )}
+                {rightComponent || (onPress && !isDestructive && (
+                    <Ionicons name="chevron-forward" size={16} color={theme.textTertiary} opacity={0.5} />
+                ))}
             </View>
         </TouchableOpacity>
     );
@@ -64,9 +66,9 @@ const styles = StyleSheet.create({
     actionRow: {
         flexDirection: 'row',
         alignItems: 'center',
-        justifyContent: 'space-between',
-        padding: 16,
-        minHeight: 64,
+        paddingVertical: 12, // Reduced from 16
+        paddingHorizontal: 14, // Tighter horizontal fit
+        minHeight: 52, // Reduced from 64
     },
     leftContainer: {
         flexDirection: 'row',
@@ -74,30 +76,27 @@ const styles = StyleSheet.create({
         flex: 1,
     },
     iconWrapper: {
-        width: 36,
-        height: 36,
-        borderRadius: 10,
+        width: 30, // Reduced from 36
+        height: 30, // Reduced from 36
+        borderRadius: 8, // Slightly tighter radius
         justifyContent: 'center',
         alignItems: 'center',
-        marginRight: 12,
+        marginRight: 10,
     },
     textContainer: {
         flex: 1,
-        justifyContent: 'center',
     },
     borderBottom: {
-        borderBottomWidth: 1,
+        borderBottomWidth: StyleSheet.hairlineWidth, // Thinner, cleaner line
     },
     actionLabel: {
-        fontSize: 16,
+        fontSize: 15, // Slightly smaller for professional look
     },
     subtitle: {
-        fontSize: 12,
-        marginTop: 2,
+        fontSize: 11, // Reduced from 12
+        marginTop: 0, // Tightened spacing
     },
     rightSide: {
-        flexDirection: 'row',
-        alignItems: 'center',
         marginLeft: 8,
     }
 });

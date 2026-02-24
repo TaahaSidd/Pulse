@@ -1,148 +1,262 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
-    StyleSheet,
     View,
     Text,
     Modal,
     TouchableOpacity,
-    TouchableWithoutFeedback,
-    ScrollView,
+    FlatList,
+    StyleSheet,
+    Pressable,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { FONTS, FONT_SIZES } from '../constants/Fonts';
+import { FONTS } from '../constants/Fonts';
 import { COLORS } from '../constants/Colors';
 import Button from './Button';
+import CategoryMapper from '../utils/CategoryMapper'; // Ensure path is correct
 
-const TransactionFilterModal = ({ visible, onClose, theme, onApply, onReset }) => {
+const TransactionFilterModal = ({
+    visible,
+    onClose,
+    theme,
+    onApply,
+    onReset,
+}) => {
+    const [activeTab, setActiveTab] = useState('month');
+    const [selectedFilters, setSelectedFilters] = useState({
+        month: [],
+        category: [],
+        status: [],
+        paymentMode: [],
+        account: []
+    });
+
+    // Dynamically fetch categories from your Mapper
+    const dynamicCategories = CategoryMapper.getAllCategories();
+
+    const filterTypes = [
+        { key: 'month', label: 'Month', options: ['February 2026', 'January 2026', 'December 2025', 'November 2025'] },
+        { key: 'category', label: 'Category', options: dynamicCategories },
+        { key: 'status', label: 'Status', options: ['Completed', 'Pending', 'Failed'] },
+        { key: 'paymentMode', label: 'Payment mode', options: ['UPI', 'Card', 'Cash'] },
+        { key: 'account', label: 'Account', options: ['Savings', 'Credit Card'] },
+    ];
+
+    const toggleOption = (option) => {
+        setSelectedFilters(prev => {
+            const currentItems = prev[activeTab];
+            const isSelected = currentItems.includes(option);
+            return {
+                ...prev,
+                [activeTab]: isSelected
+                    ? currentItems.filter(item => item !== option)
+                    : [...currentItems, option]
+            };
+        });
+    };
+
+    const handleReset = () => {
+        setSelectedFilters({ month: [], category: [], status: [], paymentMode: [], account: [] });
+        onReset();
+    };
+
+    const totalSelected = Object.values(selectedFilters).flat().length;
+
     return (
-        <Modal
-            visible={visible}
-            animationType="fade"
-            transparent={true}
-            onRequestClose={onClose}
-        >
-            <TouchableWithoutFeedback onPress={onClose}>
-                <View style={styles.overlay}>
-                    <TouchableWithoutFeedback>
-                        <View style={[styles.content, { backgroundColor: theme.card }]}>
-                            {/* Handle Bar */}
-                            <View style={[styles.handle, { backgroundColor: theme.border }]} />
+        <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
+            <View style={styles.modalOverlay}>
+                <View style={[styles.modalContainer, { backgroundColor: theme.card }]}>
 
-                            <View style={styles.header}>
-                                <Text style={[styles.title, { color: theme.text, fontFamily: FONTS.bold }]}>
-                                    Filter Transactions
-                                </Text>
-                                <TouchableOpacity onPress={onReset}>
-                                    <Text style={[styles.resetText, { color: COLORS.primary, fontFamily: FONTS.medium }]}>
-                                        Reset
-                                    </Text>
-                                </TouchableOpacity>
-                            </View>
+                    {/* Header */}
+                    <View style={[styles.header, { borderBottomColor: theme.border }]}>
+                        <Text style={[styles.headerTitle, { color: theme.text }]}>Filter</Text>
+                        <TouchableOpacity onPress={onClose}>
+                            <Ionicons name="close" size={28} color={theme.text} />
+                        </TouchableOpacity>
+                    </View>
 
-                            <ScrollView showsVerticalScrollIndicator={false} style={styles.scrollArea}>
-                                {/* Time Period Section */}
-                                <Text style={[styles.sectionLabel, { color: theme.textSecondary, fontFamily: FONTS.semiBold }]}>
-                                    TIME PERIOD
-                                </Text>
-                                <View style={styles.optionsGrid}>
-                                    {['This Month', 'Last Month', 'Last 3 Months', 'Custom'].map((period) => (
-                                        <TouchableOpacity
-                                            key={period}
-                                            style={[styles.chip, { borderColor: theme.border, backgroundColor: theme.bg }]}
-                                        >
-                                            <Text style={{ color: theme.text, fontFamily: FONTS.medium }}>{period}</Text>
-                                        </TouchableOpacity>
-                                    ))}
-                                </View>
-
-                                {/* Categories Section */}
-                                <Text style={[styles.sectionLabel, { color: theme.textSecondary, fontFamily: FONTS.semiBold, marginTop: 24 }]}>
-                                    CATEGORIES
-                                </Text>
-                                <View style={styles.optionsGrid}>
-                                    {['Shopping', 'Food', 'Transport', 'Bills', 'Health'].map((cat) => (
-                                        <TouchableOpacity
-                                            key={cat}
-                                            style={[styles.chip, { borderColor: theme.border, backgroundColor: theme.bg }]}
-                                        >
-                                            <Text style={{ color: theme.text, fontFamily: FONTS.medium }}>{cat}</Text>
-                                        </TouchableOpacity>
-                                    ))}
-                                </View>
-                            </ScrollView>
-
-                            <View style={styles.footer}>
-                                <Button
-                                    title="Apply Filters"
-                                    onPress={() => {
-                                        onApply();
-                                        onClose();
-                                    }}
-                                    fullWidth
-                                />
-                            </View>
+                    <View style={styles.splitView}>
+                        {/* Left Column: Fixed Dark Mode Logic */}
+                        <View style={[
+                            styles.leftColumn,
+                            { backgroundColor: theme.isDarkMode ? '#121212' : 'rgb(45, 45, 45)' }
+                        ]}>
+                            {filterTypes.map((tab) => {
+                                const isSelected = activeTab === tab.key;
+                                return (
+                                    <Pressable
+                                        key={tab.key}
+                                        onPress={() => setActiveTab(tab.key)}
+                                        style={[
+                                            styles.tabItem,
+                                            isSelected && {
+                                                backgroundColor: theme.card, // Matches modal bg
+                                                borderLeftWidth: 4,
+                                                borderLeftColor: COLORS.primary
+                                            }
+                                        ]}
+                                    >
+                                        <Text style={[
+                                            styles.tabText,
+                                            {
+                                                color: isSelected ? COLORS.primary : (theme.isDarkMode ? '#888' : theme.textSecondary),
+                                                fontFamily: isSelected ? FONTS.bold : FONTS.medium
+                                            }
+                                        ]}>
+                                            {tab.label}
+                                        </Text>
+                                    </Pressable>
+                                );
+                            })}
                         </View>
-                    </TouchableWithoutFeedback>
+
+                        {/* Right Column */}
+                        <View style={styles.rightColumn}>
+                            <FlatList
+                                data={filterTypes.find(t => t.key === activeTab)?.options}
+                                keyExtractor={(item) => item}
+                                showsVerticalScrollIndicator={false}
+                                renderItem={({ item }) => {
+                                    const isChecked = selectedFilters[activeTab].includes(item);
+
+                                    // Get dynamic colors for categories if the active tab is 'category'
+                                    const categoryColor = activeTab === 'category'
+                                        ? CategoryMapper.getCategoryColor(item)
+                                        : COLORS.primary;
+
+                                    return (
+                                        <TouchableOpacity
+                                            activeOpacity={0.7}
+                                            style={styles.optionRow}
+                                            onPress={() => toggleOption(item)}
+                                        >
+                                            <View style={styles.optionLabelContainer}>
+                                                {activeTab === 'category' && (
+                                                    <Ionicons
+                                                        name={CategoryMapper.getCategoryIcon(item)}
+                                                        size={18}
+                                                        color={categoryColor}
+                                                        style={{ marginRight: 10 }}
+                                                    />
+                                                )}
+                                                <Text style={[
+                                                    styles.optionText,
+                                                    { color: isChecked ? theme.text : theme.textSecondary }
+                                                ]}>
+                                                    {item}
+                                                </Text>
+                                            </View>
+
+                                            <View style={[
+                                                styles.checkbox,
+                                                { borderColor: isChecked ? categoryColor : theme.border },
+                                                isChecked && { backgroundColor: categoryColor }
+                                            ]}>
+                                                {isChecked && <Ionicons name="checkmark" size={16} color="white" />}
+                                            </View>
+                                        </TouchableOpacity>
+                                    );
+                                }}
+                            />
+                        </View>
+                    </View>
+
+                    {/* Footer */}
+                    <View style={[styles.footer, { borderTopColor: theme.border, borderTopWidth: 1 }]}>
+                        <Button
+                            title="Clear all"
+                            variant="ghost"
+                            onPress={handleReset}
+                            style={styles.flexButton}
+                            textStyle={{ color: theme.textSecondary }}
+                        />
+                        <Button
+                            title={`Apply ${totalSelected > 0 ? `(${totalSelected})` : ''}`}
+                            variant="primary"
+                            onPress={() => { onApply(selectedFilters); onClose(); }}
+                            style={styles.flexButton}
+                        />
+                    </View>
                 </View>
-            </TouchableWithoutFeedback>
+            </View>
         </Modal>
     );
 };
 
 const styles = StyleSheet.create({
-    overlay: {
+    modalOverlay: {
         flex: 1,
-        backgroundColor: 'rgba(0,0,0,0.5)',
+        backgroundColor: 'rgba(0,0,0,0.6)',
         justifyContent: 'flex-end',
     },
-    content: {
-        borderTopLeftRadius: 32,
-        borderTopRightRadius: 32,
-        paddingHorizontal: 20,
-        paddingBottom: 40,
-        maxHeight: '80%',
-    },
-    handle: {
-        width: 40,
-        height: 5,
-        borderRadius: 3,
-        alignSelf: 'center',
-        marginTop: 12,
-        marginBottom: 20,
+    modalContainer: {
+        height: '85%',
+        borderTopLeftRadius: 24,
+        borderTopRightRadius: 24,
+        overflow: 'hidden',
     },
     header: {
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
-        marginBottom: 25,
+        paddingHorizontal: 20,
+        paddingVertical: 18,
+        borderBottomWidth: 1,
     },
-    title: {
-        fontSize: FONT_SIZES.xl,
+    headerTitle: {
+        fontSize: 20,
+        fontFamily: FONTS.bold,
     },
-    resetText: {
-        fontSize: FONT_SIZES.sm,
-    },
-    sectionLabel: {
-        fontSize: 11,
-        letterSpacing: 1.2,
-        marginBottom: 12,
-    },
-    optionsGrid: {
+    splitView: {
+        flex: 1,
         flexDirection: 'row',
-        flexWrap: 'wrap',
-        gap: 10,
     },
-    chip: {
+    leftColumn: {
+        width: '35%',
+    },
+    rightColumn: {
+        flex: 1,
+        paddingHorizontal: 10,
+    },
+    tabItem: {
+        paddingVertical: 22,
         paddingHorizontal: 16,
-        paddingVertical: 10,
-        borderRadius: 12,
-        borderWidth: 1,
+        justifyContent: 'center',
+    },
+    tabText: {
+        fontSize: 15,
+    },
+    optionRow: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        paddingVertical: 18,
+        paddingHorizontal: 15,
+    },
+    optionLabelContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
+    },
+    optionText: {
+        fontSize: 16,
+        fontFamily: FONTS.medium,
+    },
+    checkbox: {
+        width: 22,
+        height: 22,
+        borderWidth: 2,
+        borderRadius: 6,
+        justifyContent: 'center',
+        alignItems: 'center',
     },
     footer: {
-        paddingTop: 20,
-        borderTopWidth: 1,
-        borderTopColor: 'rgba(0,0,0,0.05)',
+        flexDirection: 'row',
+        padding: 20,
+        paddingBottom: 34,
+        gap: 12,
     },
+    flexButton: {
+        flex: 1,
+    }
 });
 
 export default TransactionFilterModal;

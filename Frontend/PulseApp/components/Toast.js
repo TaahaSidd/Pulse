@@ -2,7 +2,7 @@ import React, { useEffect, useRef } from 'react';
 import { Animated, View, Text, StyleSheet, TouchableOpacity, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS } from '../constants/Colors';
-import { FONTS, FONT_SIZES } from '../constants/Fonts';
+import { FONTS } from '../constants/Fonts';
 
 const Toast = ({
   type = 'info',
@@ -13,25 +13,20 @@ const Toast = ({
   position = 'top',
   isDarkMode = true,
 }) => {
-  const slideAnim = useRef(new Animated.Value(position === 'top' ? -150 : 150)).current;
+  const slideAnim = useRef(new Animated.Value(position === 'top' ? -120 : 120)).current;
   const opacityAnim = useRef(new Animated.Value(0)).current;
-  const scaleAnim = useRef(new Animated.Value(0.95)).current;
 
   useEffect(() => {
     Animated.parallel([
       Animated.spring(slideAnim, {
         toValue: 0,
-        tension: 80,
-        friction: 11,
+        tension: 60,
+        friction: 10,
         useNativeDriver: true,
       }),
       Animated.timing(opacityAnim, {
         toValue: 1,
-        duration: 200,
-        useNativeDriver: true,
-      }),
-      Animated.spring(scaleAnim, {
-        toValue: 1,
+        duration: 250,
         useNativeDriver: true,
       }),
     ]).start();
@@ -43,28 +38,26 @@ const Toast = ({
   const hideToast = () => {
     Animated.parallel([
       Animated.timing(slideAnim, {
-        toValue: position === 'top' ? -150 : 150,
-        duration: 250,
+        toValue: position === 'top' ? -120 : 120,
+        duration: 200,
         useNativeDriver: true,
       }),
       Animated.timing(opacityAnim, {
         toValue: 0,
-        duration: 200,
+        duration: 150,
         useNativeDriver: true,
       }),
     ]).start(() => onHide && onHide());
   };
 
-  const getToastConfig = () => {
+  const config = (() => {
     switch (type) {
       case 'success': return { icon: 'checkmark-circle', accent: COLORS.primary };
       case 'error': return { icon: 'close-circle', accent: COLORS.error };
       case 'warning': return { icon: 'warning', accent: COLORS.warning };
       default: return { icon: 'information-circle', accent: COLORS.primary };
     }
-  };
-
-  const config = getToastConfig();
+  })();
 
   return (
     <Animated.View
@@ -72,7 +65,7 @@ const Toast = ({
         styles.container,
         position === 'top' ? styles.topPosition : styles.bottomPosition,
         {
-          transform: [{ translateY: slideAnim }, { scale: scaleAnim }],
+          transform: [{ translateY: slideAnim }],
           opacity: opacityAnim,
         },
       ]}
@@ -80,38 +73,29 @@ const Toast = ({
       <View style={[
         styles.innerContainer,
         {
-          // SOLID BACKGROUNDS - No Transparency
-          backgroundColor: isDarkMode ? '#2D2D2D' : '#FFFFFF',
-          borderColor: isDarkMode ? '#3D3D3D' : '#F0F0F0',
+          backgroundColor: isDarkMode ? '#282828' : '#FFFFFF',
+          borderColor: isDarkMode ? '#383838' : '#EAEAEA',
         }
       ]}>
-
-        {/* Compact Icon */}
-        <View style={[styles.iconContainer, { backgroundColor: config.accent + '15' }]}>
-          <Ionicons name={config.icon} size={22} color={config.accent} />
+        <View style={[styles.iconContainer, { backgroundColor: config.accent + '20' }]}>
+          <Ionicons name={config.icon} size={20} color={config.accent} />
         </View>
 
         <View style={styles.textContainer}>
           {title && (
-            <Text style={[styles.title, {
-              color: isDarkMode ? COLORS.white : COLORS.outerSpace,
-              fontFamily: FONTS.bold
-            }]}>
+            <Text numberOfLines={1} style={[styles.title, { color: isDarkMode ? '#FFFFFF' : '#1A1A1A' }]}>
               {title}
             </Text>
           )}
           {message && (
-            <Text style={[styles.message, {
-              color: isDarkMode ? COLORS.gray[400] : COLORS.gray[600],
-              fontFamily: FONTS.medium
-            }]}>
+            <Text numberOfLines={1} style={[styles.message, { color: isDarkMode ? '#A0A0A0' : '#666666' }]}>
               {message}
             </Text>
           )}
         </View>
 
         <TouchableOpacity onPress={hideToast} style={styles.closeButton}>
-          <Ionicons name="close" size={18} color={isDarkMode ? COLORS.gray[500] : COLORS.gray[400]} />
+          <Ionicons name="close" size={18} color={isDarkMode ? '#666' : '#CCC'} />
         </TouchableOpacity>
       </View>
     </Animated.View>
@@ -124,35 +108,52 @@ const styles = StyleSheet.create({
     left: 20,
     right: 20,
     zIndex: 9999,
+    alignItems: 'center', // Centers the toast if it doesn't fill width
   },
-  topPosition: { top: Platform.OS === 'ios' ? 54 : 40 },
-  bottomPosition: { bottom: Platform.OS === 'ios' ? 110 : 90 },
+  topPosition: { top: Platform.OS === 'ios' ? 50 : 30 },
+  bottomPosition: { bottom: Platform.OS === 'ios' ? 90 : 70 },
   innerContainer: {
+    width: '100%',
+    maxWidth: 450,
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    borderRadius: 24,
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    borderRadius: 18, // Rounded but not a full pill
     borderWidth: 1,
-    // Solid Shadow
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.2,
-    shadowRadius: 12,
-    elevation: 10,
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.15,
+    shadowRadius: 10,
+    elevation: 8,
   },
   iconContainer: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
+    width: 34,
+    height: 34,
+    borderRadius: 10,
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 12,
   },
-  textContainer: { flex: 1 },
-  title: { fontSize: 15, letterSpacing: -0.3 },
-  message: { fontSize: 13, marginTop: 1 },
-  closeButton: { padding: 4, marginLeft: 8 },
+  textContainer: {
+    flex: 1,
+    justifyContent: 'center',
+  },
+  title: {
+    fontSize: 14,
+    fontFamily: FONTS.bold,
+    lineHeight: 18,
+  },
+  message: {
+    fontSize: 12,
+    fontFamily: FONTS.medium,
+    lineHeight: 16,
+    marginTop: 1,
+  },
+  closeButton: {
+    padding: 4,
+    marginLeft: 8,
+  },
 });
 
 export default Toast;

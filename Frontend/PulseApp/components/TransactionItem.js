@@ -1,48 +1,42 @@
-import React, { useState } from 'react'; // Added useState
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+// Updated TransactionItem.js
+// Changes needed for CategoryBreakdown screen support
+
+import React, { useState } from 'react';
+import { View, Text, TouchableOpacity, StyleSheet, Animated } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS } from '../constants/Colors';
 import { FONTS } from '../constants/Fonts';
+import { useAnimations } from '../hooks/useAnimations';
 
 import { CategoryMapper } from '../utils/CategoryMapper';
 import { PopularMerchants } from '../utils/MerchantMapper';
-import PulseModal from './PulseModal'; // Import your custom modal
+import PulseModal from './PulseModal';
 
 const TransactionItem = ({
-    item,
-    index,
-    isLast,
-    theme,
-    onPress,
-    onDelete,
-    showSubtitle = true,
-    isDarkMode = true
+    item, index, isLast, theme, onPress, onDelete, showSubtitle = true, isDarkMode = true
 }) => {
     const [isDeleteModalVisible, setIsDeleteModalVisible] = useState(false);
 
-    // 1. Branding Logic (Prioritize Merchant Brand -> then Category)
+    const { useBouncyPress, useListEntry } = useAnimations();
+    const { scale, pressIn, pressOut } = useBouncyPress();
+    const { translateY, opacity } = useListEntry(index * 60);
+
     const brandMatch = Object.keys(PopularMerchants).find(key =>
         item.merchant?.toLowerCase().includes(key)
     );
     const brand = PopularMerchants[brandMatch];
 
-    const categoryColor = brand?.color || CategoryMapper.getCategoryColor(item.category);
-    const categoryIcon = brand?.icon || CategoryMapper.getCategoryIcon(item.category);
+    const categoryColor = item.color || brand?.color || CategoryMapper.getCategoryColor(item.category);
+    const categoryIcon = item.icon || brand?.icon || CategoryMapper.getCategoryIcon(item.category);
     const isExpense = item.type === 'debit';
 
-    const handleLongPress = () => {
-        if (onDelete) {
-            setIsDeleteModalVisible(true);
-        }
-    };
-
+    const handleLongPress = () => onDelete && setIsDeleteModalVisible(true);
     const confirmDelete = () => {
         setIsDeleteModalVisible(false);
         onDelete(item.id);
     };
 
     const renderIcon = () => {
-        // If we have a specific brand icon (Zomato/Amazon) OR a valid category icon
         if (categoryIcon && categoryIcon !== 'ellipsis-horizontal') {
             return (
                 <View style={[styles.iconWrapper, { backgroundColor: categoryColor + '15' }]}>
@@ -50,8 +44,6 @@ const TransactionItem = ({
                 </View>
             );
         }
-
-        // FALLBACK: Profile Pic style using the first letter
         return (
             <View style={[styles.iconWrapper, { backgroundColor: theme.cardElevated }]}>
                 <Text style={[styles.avatarText, { color: theme.textSecondary, fontFamily: FONTS.bold }]}>
@@ -63,56 +55,64 @@ const TransactionItem = ({
 
     return (
         <>
-            <TouchableOpacity
-                style={styles.txRow}
-                activeOpacity={0.6}
-                onPress={onPress}
-                onLongPress={handleLongPress}
+            <Animated.View
+                style={[
+                    {
+                        transform: [{ scale }, { translateY }],
+                        opacity,
+                    }
+                ]}
             >
-                {renderIcon()}
-
-                <View style={[
-                    styles.txMain,
-                    !isLast && { borderBottomWidth: 0.5, borderBottomColor: theme.border }
-                ]}>
-                    <View style={styles.details}>
-                        <Text
-                            numberOfLines={1}
-                            style={[styles.txTitle, { color: theme.text, fontFamily: FONTS.semiBold }]}
-                        >
-                            {item.merchant || 'Unknown'}
-                        </Text>
-
-                        {showSubtitle && (
-                            <Text style={[styles.txSubtitle, { color: theme.textTertiary, fontFamily: FONTS.medium }]}>
-                                {item.category} • {item.bank}
+                <TouchableOpacity
+                    style={styles.txRow}
+                    activeOpacity={1}
+                    onPressIn={pressIn}
+                    onPressOut={pressOut}
+                    onPress={onPress}
+                    onLongPress={handleLongPress}
+                >
+                    {renderIcon()}
+                    <View style={[
+                        styles.txMain,
+                        !isLast && { borderBottomWidth: 0.5, borderBottomColor: theme.border }
+                    ]}>
+                        <View style={styles.details}>
+                            <Text numberOfLines={1} style={[styles.txTitle, { color: theme.text, fontFamily: FONTS.semiBold }]}>
+                                {item.merchant || 'Unknown'}
                             </Text>
-                        )}
+                            {showSubtitle && (
+                                <Text style={[styles.txSubtitle, { color: theme.textTertiary, fontFamily: FONTS.medium }]}>
+                                    {/* ✅ CHANGE 2: Show just category if no bank (for breakdown) */}
+                                    {item.bank ? `${item.category} • ${item.bank}` : item.category}
+                                </Text>
+                            )}
+                        </View>
+                        <View style={styles.amountContainer}>
+                            <Text style={[
+                                styles.amountText,
+                                { color: isExpense ? theme.text : COLORS.primary, fontFamily: FONTS.bold }
+                            ]}>
+                                {isExpense ? `-₹${item.amount.toLocaleString('en-IN')}` : `+₹${item.amount.toLocaleString('en-IN')}`}
+                            </Text>
+                        </View>
                     </View>
+                </TouchableOpacity>
+            </Animated.View>
 
-                    <View style={styles.amountContainer}>
-                        <Text style={[
-                            styles.amountText,
-                            { color: isExpense ? theme.text : COLORS.primary, fontFamily: FONTS.bold }
-                        ]}>
-                            {isExpense ? `-₹${item.amount.toLocaleString('en-IN')}` : `+₹${item.amount.toLocaleString('en-IN')}`}
-                        </Text>
-                    </View>
-                </View>
-            </TouchableOpacity>
-
-            {/* Premium Delete Confirmation Modal */}
-            <PulseModal
-                visible={isDeleteModalVisible}
-                type="delete"
-                title="Remove Record"
-                message={`Are you sure you want to delete the transaction for ${item.merchant}?`}
-                primaryButtonText="Delete"
-                onPrimaryPress={confirmDelete}
-                onSecondaryPress={() => setIsDeleteModalVisible(false)}
-                onClose={() => setIsDeleteModalVisible(false)}
-                isDarkMode={isDarkMode}
-            />
+            {/* ✅ CHANGE 3: Only show delete modal if onDelete is provided */}
+            {onDelete && (
+                <PulseModal
+                    visible={isDeleteModalVisible}
+                    type="delete"
+                    title="Remove Record"
+                    message={`Are you sure you want to delete the transaction for ${item.merchant}?`}
+                    primaryButtonText="Delete"
+                    onPrimaryPress={confirmDelete}
+                    onSecondaryPress={() => setIsDeleteModalVisible(false)}
+                    onClose={() => setIsDeleteModalVisible(false)}
+                    isDarkMode={isDarkMode}
+                />
+            )}
         </>
     );
 };
