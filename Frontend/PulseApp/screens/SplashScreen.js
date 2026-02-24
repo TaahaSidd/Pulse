@@ -1,76 +1,59 @@
 import React, { useEffect, useRef } from 'react';
-import { View, StyleSheet, StatusBar, Animated, Text } from 'react-native';
-import { SvgXml } from 'react-native-svg';
-import * as Haptics from 'expo-haptics';
-import { COLORS } from '../constants/Colors';
+import { View, StyleSheet, StatusBar, Animated, Easing } from 'react-native';
+import Svg, { Path } from 'react-native-svg';
+import { THEME } from '../constants/Themes';
 import { FONTS } from '../constants/Fonts';
 
-// Start positions are now very tight (20px offset) for a "gathering" effect
-const PIECES = [
-  {
-    xml: `<svg width="84" height="84" viewBox="0 0 84 84" fill="none"><path d="M83.9335 0L83.9335 83.9334L0 83.9334L0 20C0 8.9543 8.9543 0 20 0L83.9335 0Z" fill="#8CF364"/></svg>`,
-    startPos: { x: -20, y: -20 }
-  },
-  {
-    xml: `<svg width="84" height="84" viewBox="0 0 84 84" fill="none"><path d="M83.9341 0L83.9341 83.9334L28.4851 83.9334C12.7535 83.9334 0.000610352 71.1805 0.000610352 55.4489L0.000610352 0L83.9341 0Z" fill="#8CF364"/></svg>`,
-    startPos: { x: 20, y: -20 }
-  },
-  {
-    xml: `<svg width="84" height="84" viewBox="0 0 84 84" fill="none"><path d="M55.4489 0C71.1805 0 83.9334 12.753 83.9334 28.4845L83.9334 83.9334L0 83.9334L0 0L55.4489 0Z" fill="#8CF364"/></svg>`,
-    startPos: { x: -20, y: 20 }
-  },
-  {
-    xml: `<svg width="84" height="84" viewBox="0 0 84 84" fill="none"><path d="M83.9333 0L83.9333 63.9339C83.9333 74.9796 74.979 83.9339 63.9333 83.9339L0 83.9339L0 0L83.9333 0Z" fill="#8CF364"/></svg>`,
-    startPos: { x: 20, y: 20 }
-  }
-];
+const AnimatedPath = Animated.createAnimatedComponent(Path);
 
 export default function SplashScreen({ navigation, isDarkMode = true }) {
   const bgColor = isDarkMode ? '#0A0F0A' : '#F8FFF5';
 
-  const pieceAnims = useRef(PIECES.map(p => new Animated.ValueXY(p.startPos))).current;
-  const pieceOpacities = useRef(PIECES.map(() => new Animated.Value(0))).current;
+  const strokeAnimation = useRef(new Animated.Value(1000)).current;
+  const fillOpacity = useRef(new Animated.Value(0)).current;
   const taglineOpacity = useRef(new Animated.Value(0)).current;
-  const taglineTranslateY = useRef(new Animated.Value(10)).current;
+  const scaleAnim = useRef(new Animated.Value(0.92)).current; // Start tighter
+
+  const pathData = "M57.1646 76.4811C50.7215 77.3848 44.639 80.5106 41.1781 86.0199L36.0108 94.2453C35.7655 94.6359 35.3366 94.873 34.8753 94.873C34.0357 94.873 33.4026 94.1101 33.5573 93.2849L38.4414 67.2343C39.1901 63.241 42.6767 60.3473 46.7396 60.3473C52.3179 60.3473 56.8256 59.4457 60.2628 57.6426C63.6999 55.8396 66.2073 53.3603 67.7851 50.2049C69.4191 46.9931 70.2361 43.3306 70.2361 39.2173C70.2361 35.3294 69.4191 31.695 67.7851 28.3142C66.2073 24.8771 63.6999 22.1161 60.2628 20.0312C56.8256 17.9464 52.3179 16.904 46.7396 16.904H42.0995C30.1256 16.904 19.9836 25.7296 18.3295 37.5887L6.82016 120.108C6.58401 121.801 5.13602 123.061 3.4265 123.061C1.5341 123.061 0 121.527 0 119.635V24C0 10.7452 10.7452 0 24 0H46.7396C56.2622 0 64.3479 1.6904 70.9968 5.0712C77.7021 8.39565 82.8015 13.0161 86.2949 18.9325C89.7884 24.7925 91.5352 31.4978 91.5352 39.0482C91.5352 46.9931 89.7884 53.8111 86.2949 59.5021C82.8015 65.1931 77.7021 69.56 70.9968 72.6027C66.925 74.4661 62.3142 75.7589 57.1646 76.4811Z";
 
   useEffect(() => {
-    // 1. Logo Assembles
-    const animations = PIECES.flatMap((_, i) => [
-      Animated.spring(pieceAnims[i], {
-        toValue: { x: 0, y: 0 },
+    Animated.sequence([
+      // 1. Precise Trace
+      Animated.timing(strokeAnimation, {
+        toValue: 0,
+        duration: 1200,
+        easing: Easing.bezier(0.25, 0.1, 0.25, 1),
         useNativeDriver: true,
-        bounciness: 4,
-        speed: 1,
-        delay: i * 80, // Snappier stagger
       }),
-      Animated.timing(pieceOpacities[i], {
-        toValue: 1,
-        duration: 400,
-        useNativeDriver: true,
-        delay: i * 80,
-      })
-    ]);
-
-    Animated.parallel(animations).start(() => {
-      // 2. Light haptic tap when joined
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-
-      // 3. Tagline floats up and fades in
+      // 2. The "Pop": Expand scale and fade in fill simultaneously
       Animated.parallel([
-        Animated.timing(taglineOpacity, {
-          toValue: 1,
-          duration: 800,
+        Animated.spring(scaleAnim, {
+          toValue: 1.05, // Slight overshoot for energy
+          friction: 3,
+          tension: 40,
           useNativeDriver: true,
         }),
-        Animated.timing(taglineTranslateY, {
-          toValue: 0,
-          duration: 800,
+        Animated.timing(fillOpacity, {
+          toValue: 1,
+          duration: 400,
           useNativeDriver: true,
-        })
-      ]).start(() => {
-        // 4. Brief pause to let them read it, then navigate
-        setTimeout(() => navigation.replace('Onboarding'), 1200);
-      });
+        }),
+      ]),
+      // 3. Settle back to 1.0 scale and show tagline
+      Animated.parallel([
+        Animated.spring(scaleAnim, {
+          toValue: 1,
+          friction: 5,
+          useNativeDriver: true,
+        }),
+        Animated.timing(taglineOpacity, {
+          toValue: 1,
+          duration: 600,
+          useNativeDriver: true,
+        }),
+      ]),
+    ]).start(() => {
+      setTimeout(() => navigation.replace('Home'), 1000);
     });
   }, []);
 
@@ -78,58 +61,41 @@ export default function SplashScreen({ navigation, isDarkMode = true }) {
     <View style={[styles.container, { backgroundColor: bgColor }]}>
       <StatusBar hidden />
 
-      <View style={styles.content}>
-        <View style={styles.logoGrid}>
-          {PIECES.map((piece, i) => (
-            <Animated.View
-              key={i}
-              style={[
-                styles.piece,
-                {
-                  transform: pieceAnims[i].getTranslateTransform(),
-                  opacity: pieceOpacities[i]
-                }
-              ]}
-            >
-              <SvgXml xml={piece.xml} width={50} height={50} />
-            </Animated.View>
-          ))}
-        </View>
+      <Animated.View style={{ transform: [{ scale: scaleAnim }], alignItems: 'center' }}>
+        <Svg width="92" height="124" viewBox="0 0 92 124">
+          <AnimatedPath
+            d={pathData}
+            stroke="#8CF364"
+            strokeWidth="1.2"
+            fill="transparent"
+            strokeDasharray="1000"
+            strokeDashoffset={strokeAnimation}
+            strokeLinecap="round"
+          />
+          <AnimatedPath
+            d={pathData}
+            fill="#8CF364"
+            opacity={fillOpacity}
+          />
+        </Svg>
 
         <Animated.Text style={[
           styles.tagline,
-          {
-            color: isDarkMode ? '#555' : '#999',
-            opacity: taglineOpacity,
-            fontFamily: FONTS.medium,
-            transform: [{ translateY: taglineTranslateY }]
-          }
+          { color: isDarkMode ? '#555' : '#999', opacity: taglineOpacity, fontFamily: FONTS.medium }
         ]}>
           Your finances, in sync.
         </Animated.Text>
-      </View>
+      </Animated.View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  content: { alignItems: 'center' },
-  logoGrid: {
-    width: 105,
-    height: 105,
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'center',
-    alignContent: 'center',
-    gap: 3,
-  },
-  piece: { width: 50, height: 50 },
   tagline: {
-    fontSize: 12,
-    marginTop: 24, // Closer to the logo
-    textAlign: 'center',
-    letterSpacing: 4, // Elegant tracking
+    fontSize: THEME.fontSize.micro,
+    marginTop: THEME.spacing[6],
+    letterSpacing: 4,
     textTransform: 'uppercase',
   },
 });

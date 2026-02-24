@@ -5,44 +5,95 @@ import {
   View,
   SafeAreaView,
   TouchableOpacity,
-  Dimensions,
   ScrollView,
+  Platform,
+  Alert,
+  Modal,
+  Linking,
 } from 'react-native';
-// ❌ REMOVED: import { Canvas, Points, vec } from '@shopify/react-native-skia';
 import { Ionicons } from '@expo/vector-icons';
+//import RNNotifListener from 'react-native-android-notification-listener';
 import { getThemedColors, COLORS } from '../constants/Colors';
 import { FONTS } from '../constants/Fonts';
 import Button from '../components/Button';
 
-const { width, height } = Dimensions.get('window');
-
 export default function NotificationPermissionScreen({ navigation, isDarkMode = true }) {
   const theme = getThemedColors(isDarkMode);
   const [loading, setLoading] = useState(false);
+  const [showManualModal, setShowManualModal] = useState(false);
 
-  // ❌ REMOVED: grid generation code
-
-  const handleEnable = () => {
+  const requestNotificationPermission = async () => {
     setLoading(true);
-    setTimeout(() => {
+
+    try {
+      if (Platform.OS === 'android') {
+        // Check if notification listener permission is granted
+        const status = await RNNotifListener.getPermissionStatus();
+
+        if (status === 'authorized') {
+          // Already granted
+          console.log('✅ Notification listener already enabled');
+          setLoading(false);
+          navigation.replace('Home');
+        } else {
+          // Need to open settings
+          setLoading(false);
+          Alert.alert(
+            'Enable Notification Access',
+            'Pulse needs access to your notifications to automatically detect bank transactions.\n\nYou will be redirected to Settings. Please find "Pulse" in the list and enable it.',
+            [
+              {
+                text: 'Cancel',
+                style: 'cancel',
+                onPress: () => setShowManualModal(true)
+              },
+              {
+                text: 'Open Settings',
+                onPress: async () => {
+                  // Open notification listener settings
+                  await RNNotifListener.requestPermission();
+
+                  // After user returns, check status
+                  setTimeout(async () => {
+                    const newStatus = await RNNotifListener.getPermissionStatus();
+                    if (newStatus === 'authorized') {
+                      navigation.replace('Home');
+                    } else {
+                      setShowManualModal(true);
+                    }
+                  }, 1000);
+                }
+              }
+            ]
+          );
+        }
+      } else {
+        // iOS - Notification reading not supported
+        setLoading(false);
+        setShowManualModal(true);
+      }
+    } catch (error) {
       setLoading(false);
-      navigation.replace('Home');
-    }, 1500);
+      console.error('❌ Error requesting notification permission:', error);
+      Alert.alert('Error', 'Failed to request permissions. Please try again.');
+    }
+  };
+
+  const handleSkip = () => {
+    // User clicked "Setup manually later" - show modal
+    setShowManualModal(true);
+  };
+
+  const handleContinueManual = () => {
+    // User accepts manual entry - go to home
+    setShowManualModal(false);
+    navigation.replace('Home');
   };
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: theme.bg }]}>
 
-      {/* ✅ SIMPLE TECH BACKGROUND - NO CRASHES */}
-      <View style={[
-        StyleSheet.absoluteFill,
-        styles.techBackground,
-        {
-          backgroundColor: isDarkMode
-            ? 'linear-gradient(135deg, #0F0F23 0%, #1A1A2E 50%, #16213E 100%)'
-            : 'linear-gradient(135deg, #F8FAFC 0%, #E2E8F0 50%, #F1F5F9 100%)'
-        }
-      ]} />
+      <View style={[StyleSheet.absoluteFill, styles.techBackground]} />
 
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <View style={styles.heroSection}>
@@ -50,7 +101,7 @@ export default function NotificationPermissionScreen({ navigation, isDarkMode = 
             Automated Tracking
           </Text>
           <Text style={[styles.description, { color: theme.textSecondary }]}>
-            Pulse securely scans your bank notifications to log expenses instantly.
+            Pulse securely reads your bank notifications to log expenses instantly.
             No manual entry, no forgotten spend.
           </Text>
         </View>
@@ -86,27 +137,84 @@ export default function NotificationPermissionScreen({ navigation, isDarkMode = 
           </Text>
         </View>
 
-        <Button
-          title="Enable Permissions"
-          variant="primary"
-          fullWidth
-          loading={loading}
-          onPress={handleEnable}
-        />
+        {Platform.OS === 'android' ? (
+          <Button
+            title="Enable Notification Access"
+            variant="primary"
+            fullWidth
+            loading={loading}
+            onPress={requestNotificationPermission}
+          />
+        ) : (
+          <Button
+            title="Continue to App"
+            variant="primary"
+            fullWidth
+            onPress={handleSkip}
+          />
+        )}
 
-        <TouchableOpacity onPress={() => navigation.replace('Home')} style={styles.skipButton}>
-          <Text style={[styles.skipText, { color: theme.textTertiary }]}>Setup manually later</Text>
+        <TouchableOpacity onPress={handleSkip} style={styles.skipButton}>
+          <Text style={[styles.skipText, { color: theme.textTertiary }]}>
+            {Platform.OS === 'android' ? 'Setup manually later' : 'Manual entry only'}
+          </Text>
         </TouchableOpacity>
       </View>
+
+      {/* Manual Entry Modal */}
+      <Modal
+        visible={showManualModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowManualModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalContent, { backgroundColor: theme.card }]}>
+            <View style={[styles.modalIconCircle, { backgroundColor: COLORS.primary + '20' }]}>
+              <Ionicons name="create-outline" size={48} color={COLORS.primary} />
+            </View>
+
+            <Text style={[styles.modalTitle, { color: theme.text, fontFamily: FONTS.bold }]}>
+              Manual Entry Required
+            </Text>
+
+            <Text style={[styles.modalMessage, { color: theme.textSecondary, fontFamily: FONTS.regular }]}>
+              Without notification access, you'll need to manually add all your expenses. You can still track your spending, set budgets, and view insights.
+            </Text>
+
+            <View style={styles.modalButtons}>
+              <TouchableOpacity
+                style={[styles.modalButton, styles.modalButtonSecondary, { backgroundColor: theme.cardElevated }]}
+                onPress={() => {
+                  setShowManualModal(false);
+                  requestNotificationPermission();
+                }}
+              >
+                <Text style={[styles.modalButtonText, { color: COLORS.primary, fontFamily: FONTS.semiBold }]}>
+                  Enable Notifications
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[styles.modalButton, styles.modalButtonPrimary, { backgroundColor: COLORS.primary }]}
+                onPress={handleContinueManual}
+              >
+                <Text style={[styles.modalButtonTextPrimary, { fontFamily: FONTS.semiBold }]}>
+                  Continue Anyway
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
 
-// StepItem component stays the same...
 const StepItem = ({ icon, title, desc, theme, isLast }) => (
   <View style={styles.stepRow}>
     <View style={styles.stepLeft}>
-      <View style={[styles.stepIconContainer, { backgroundColor: theme.bg }]}>
+      <View style={[styles.stepIconContainer, { backgroundColor: theme.cardElevated }]}>
         <Ionicons name={icon} size={22} color={COLORS.primary} />
       </View>
       {!isLast && <View style={[styles.stepLine, { backgroundColor: theme.divider }]} />}
@@ -125,13 +233,13 @@ const StepItem = ({ icon, title, desc, theme, isLast }) => (
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  // ✅ NEW TECH BACKGROUND
   techBackground: {
     position: 'absolute',
     top: 0,
     left: 0,
     right: 0,
     bottom: 0,
+    backgroundColor: COLORS.outerSpace,
   },
   content: { paddingHorizontal: 30, paddingTop: 80, paddingBottom: 40 },
   heroSection: {
@@ -149,7 +257,7 @@ const styles = StyleSheet.create({
     lineHeight: 24,
     opacity: 0.7
   },
-  stepsContainer: { paddingLeft: 10 },
+  stepsContainer: { paddingLeft: 10, marginBottom: 30 },
   stepRow: { flexDirection: 'row' },
   stepLeft: { alignItems: 'center', marginRight: 20 },
   stepIconContainer: {
@@ -180,4 +288,60 @@ const styles = StyleSheet.create({
   privacyText: { fontSize: 11, letterSpacing: 1, fontWeight: 'bold' },
   skipButton: { marginTop: 20, alignItems: 'center' },
   skipText: { fontSize: 14 },
+
+  // Modal styles
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 30,
+  },
+  modalContent: {
+    width: '100%',
+    borderRadius: 24,
+    padding: 30,
+    alignItems: 'center',
+  },
+  modalIconCircle: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  modalTitle: {
+    fontSize: 24,
+    textAlign: 'center',
+    marginBottom: 12,
+  },
+  modalMessage: {
+    fontSize: 15,
+    textAlign: 'center',
+    lineHeight: 22,
+    marginBottom: 30,
+  },
+  modalButtons: {
+    width: '100%',
+    gap: 12,
+  },
+  modalButton: {
+    width: '100%',
+    paddingVertical: 16,
+    borderRadius: 16,
+    alignItems: 'center',
+  },
+  modalButtonSecondary: {
+    borderWidth: 2,
+    borderColor: COLORS.primary,
+  },
+  modalButtonPrimary: {},
+  modalButtonText: {
+    fontSize: 16,
+  },
+  modalButtonTextPrimary: {
+    fontSize: 16,
+    color: '#000',
+  },
 });

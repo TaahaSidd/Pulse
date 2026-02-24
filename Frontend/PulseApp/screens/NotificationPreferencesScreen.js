@@ -1,9 +1,13 @@
 import React, { useState } from 'react';
-import { StyleSheet, Text, View, ScrollView, TouchableOpacity, Switch } from 'react-native';
+import { StyleSheet, Text, View, ScrollView, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { getThemedColors, COLORS } from '../constants/Colors';
 import { FONTS } from '../constants/Fonts';
+
+import ScreenHeader from '../components/ScreenHeader';
 import InfoBox from '../components/InfoBox';
+import GeneralActionItem from '../components/GeneralActionItem';
+import CustomSwitch from '../components/CustomSwitch'; // 1. Import CustomSwitch
 
 export default function NotificationPreferencesScreen({ navigation, isDarkMode = true }) {
     const theme = getThemedColors(isDarkMode);
@@ -14,92 +18,108 @@ export default function NotificationPreferencesScreen({ navigation, isDarkMode =
     const [dailySummary, setDailySummary] = useState(false);
     const [budgetAlerts, setBudgetAlerts] = useState(true);
 
-    const PrefRow = ({ icon, title, subtitle, value, onValueChange, isLast = false }) => (
-        <View style={[styles.row, !isLast && { borderBottomWidth: 1, borderBottomColor: theme.border }]}>
-            <View style={[styles.iconBox, { backgroundColor: theme.bg }]}>
-                <Ionicons name={icon} size={20} color={COLORS.primary} />
-            </View>
-            <View style={{ flex: 1, marginRight: 10 }}>
-                <Text style={[styles.title, { color: theme.text, fontFamily: FONTS.semiBold }]}>{title}</Text>
-                <Text style={[styles.subtitle, { color: theme.textTertiary, fontFamily: FONTS.regular }]}>{subtitle}</Text>
-            </View>
-            <Switch
-                value={value}
-                onValueChange={onValueChange}
-                trackColor={{ false: theme.border, true: COLORS.primary + '80' }}
-                thumbColor={value ? COLORS.primary : '#f4f3f4'}
-                disabled={!pushEnabled && title !== "Master Notifications"}
-            />
-        </View>
-    );
-
     return (
         <View style={[styles.container, { backgroundColor: theme.bg }]}>
-            {/* Header */}
-            <View style={styles.header}>
-                <TouchableOpacity onPress={() => navigation.goBack()}>
-                    <Ionicons name="chevron-back" size={28} color={theme.text} />
-                </TouchableOpacity>
-                <Text style={[styles.headerTitle, { color: theme.text, fontFamily: FONTS.bold }]}>Notifications</Text>
-                <View style={{ width: 28 }} />
-            </View>
+            <ScreenHeader
+                mode="simple"
+                theme={theme}
+                title="Notifications"
+                showBack={true}
+                onBackPress={() => navigation.goBack()}
+            />
 
-            <ScrollView contentContainerStyle={styles.content}>
+            <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
                 <InfoBox
                     type="info"
                     icon="notifications-circle"
-                    text="Pulse only sends notifications for transactions parsed on this device. We never send marketing spam."
+                    text="Pulse only sends notifications for transactions parsed on this device. No marketing spam."
                     isDarkMode={isDarkMode}
                 />
 
                 <Text style={[styles.sectionLabel, { color: theme.textSecondary, fontFamily: FONTS.bold }]}>SYSTEM</Text>
                 <View style={[styles.card, { backgroundColor: theme.card, borderColor: theme.border }]}>
-                    <PrefRow
+                    <GeneralActionItem
                         icon="notifications-outline"
-                        title="Master Notifications"
+                        iconColor={COLORS.primary}
+                        label="Master Notifications"
                         subtitle="Enable or disable all alerts"
-                        value={pushEnabled}
-                        onValueChange={setPushEnabled}
+                        theme={theme}
                         isLast={true}
+                        rightComponent={
+                            <CustomSwitch
+                                value={pushEnabled}
+                                onValueChange={setPushEnabled}
+                                isDarkMode={isDarkMode}
+                            />
+                        }
                     />
                 </View>
 
                 <Text style={[styles.sectionLabel, { color: theme.textSecondary, fontFamily: FONTS.bold }]}>TRANSACTION ALERTS</Text>
-                <View style={[styles.card, { backgroundColor: theme.card, borderColor: theme.border, opacity: pushEnabled ? 1 : 0.5 }]}>
-                    <PrefRow
+                <View style={[
+                    styles.card,
+                    { backgroundColor: theme.card, borderColor: theme.border, opacity: pushEnabled ? 1 : 0.5 }
+                ]}>
+                    <GeneralActionItem
                         icon="flash-outline"
-                        title="Instant Parse Alerts"
-                        subtitle="Notify when an SMS is successfully parsed"
-                        value={transactionAlerts}
-                        onValueChange={setTransactionAlerts}
+                        iconColor={COLORS.primary}
+                        label="Instant Parse Alerts"
+                        subtitle="Notify when an SMS is parsed"
+                        theme={theme}
+                        rightComponent={
+                            <CustomSwitch
+                                value={transactionAlerts}
+                                onValueChange={setTransactionAlerts}
+                                isDarkMode={isDarkMode}
+                                disabled={!pushEnabled}
+                            />
+                        }
                     />
-                    <PrefRow
+                    <GeneralActionItem
                         icon="stats-chart-outline"
-                        title="Daily Summary"
-                        subtitle="A morning recap of yesterday's spends"
-                        value={dailySummary}
-                        onValueChange={setDailySummary}
+                        iconColor={COLORS.primary}
+                        label="Daily Summary"
+                        subtitle="A morning recap of yesterday"
+                        theme={theme}
+                        rightComponent={
+                            <CustomSwitch
+                                value={dailySummary}
+                                onValueChange={setDailySummary}
+                                isDarkMode={isDarkMode}
+                                disabled={!pushEnabled}
+                            />
+                        }
                     />
-                    <PrefRow
+                    <GeneralActionItem
                         icon="warning-outline"
-                        title="Budget Exceeded"
-                        subtitle="Alert when you cross 80% of your limit"
-                        value={budgetAlerts}
-                        onValueChange={setBudgetAlerts}
+                        iconColor={COLORS.primary}
+                        label="Budget Exceeded"
+                        subtitle="Alert at 80% of limit"
+                        theme={theme}
                         isLast={true}
+                        rightComponent={
+                            <CustomSwitch
+                                value={budgetAlerts}
+                                onValueChange={setBudgetAlerts}
+                                isDarkMode={isDarkMode}
+                                disabled={!pushEnabled}
+                            />
+                        }
                     />
                 </View>
 
                 <TouchableOpacity
                     style={styles.systemSettings}
                     onPress={() => {/* Logic to open OS Settings */ }}
+                    activeOpacity={0.7}
                 >
                     <Text style={[styles.systemText, { color: COLORS.primary, fontFamily: FONTS.medium }]}>
                         Open System Settings
                     </Text>
-                    <Ionicons name="open-outline" size={16} color={COLORS.primary} />
+                    <Ionicons name="open-outline" size={14} color={COLORS.primary} />
                 </TouchableOpacity>
 
+                <View style={{ height: 50 }} />
             </ScrollView>
         </View>
     );
@@ -107,15 +127,22 @@ export default function NotificationPreferencesScreen({ navigation, isDarkMode =
 
 const styles = StyleSheet.create({
     container: { flex: 1 },
-    header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingTop: 60, paddingHorizontal: 20, marginBottom: 20 },
-    headerTitle: { fontSize: 20 },
-    content: { paddingHorizontal: 20, paddingBottom: 40 },
-    sectionLabel: { fontSize: 11, marginBottom: 10, marginTop: 25, letterSpacing: 1.5 },
-    card: { borderRadius: 20, borderWidth: 1, overflow: 'hidden' },
-    row: { flexDirection: 'row', alignItems: 'center', padding: 16 },
-    iconBox: { width: 36, height: 36, borderRadius: 10, justifyContent: 'center', alignItems: 'center', marginRight: 15 },
-    title: { fontSize: 15, marginBottom: 2 },
-    subtitle: { fontSize: 12, lineHeight: 16 },
-    systemSettings: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginTop: 30, gap: 8 },
-    systemText: { fontSize: 14 }
+    content: { paddingHorizontal: 16, paddingBottom: 40 }, // Compact padding
+    sectionLabel: {
+        fontSize: 10,
+        marginBottom: 8,
+        marginTop: 20,
+        letterSpacing: 1.5,
+        marginLeft: 4,
+        opacity: 0.7
+    },
+    card: { borderRadius: 16, borderWidth: 1, overflow: 'hidden' }, // Tighter radius
+    systemSettings: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        marginTop: 30,
+        gap: 6
+    },
+    systemText: { fontSize: 13 }
 });

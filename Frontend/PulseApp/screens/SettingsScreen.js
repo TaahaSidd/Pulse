@@ -18,85 +18,56 @@ import { format } from 'date-fns';
 
 import BottomNavBar from '../components/BottomNavBar';
 import PulseModal from '../components/PulseModal';
+import GeneralActionItem from '../components/GeneralActionItem';
+import CustomSwitch from '../components/CustomSwitch';
 
 import BankPatterns from '../utils/BankPatterns';
 
+import { useAuth } from '../context/AuthContext';
+import { StreakService } from '../utils/Streak';
+
 export default function SettingsScreen({ navigation, isDarkMode = true, toggleTheme }) {
   const theme = getThemedColors(isDarkMode);
-  const { salary, daysUntilSalary } = useSalary();
   const { budget, refresh } = useBudget();
 
+  const { signOut } = useAuth();
 
   const [modalVisible, setModalVisible] = useState(false);
   const [modalType, setModalType] = useState('logout');
   const [limitAlerts, setLimitAlerts] = useState(true);
 
+  const [streakCount, setStreakCount] = useState(0);
+
   useEffect(() => {
     const unsubscribe = navigation.addListener('focus', () => {
       refresh();
+      loadStreakData();
     });
-
     return unsubscribe;
   }, [navigation]);
 
-  const handleNavigate = (screen) => {
-    navigation.navigate(screen);
+
+  const loadStreakData = async () => {
+    const data = await StreakService.getStreak();
+    setStreakCount(data.count);
   };
 
-  const openModal = (type) => {
-    setModalType(type);
-    setModalVisible(true);
-  };
 
-  const handleLogout = () => {
-    setModalVisible(false); // 1. Close the modal
+  // const handleLogout = async () => {
+  //   setModalVisible(false);
 
-    // 2. Wipe navigation history and go to Login
-    navigation.reset({
-      index: 0,
-      routes: [{ name: 'Login' }],
-    });
-  };
+  //   const { error } = await signOut();
 
-  const PulseSwitch = ({ value, onValueChange }) => (
-    <View style={styles.switchContainer}>
-      <Switch
-        value={value}
-        onValueChange={onValueChange}
-        trackColor={{ false: '#334155', true: COLORS.primary }}
-        thumbColor={'#FFFFFF'}
-        ios_backgroundColor="#334155"
-      />
-    </View>
-  );
+  //   if (error) {
+  //     console.error('Logout error ', error);
+  //     return;
+  //   }
 
-  const SettingItem = ({ icon, title, subtitle, onPress, showArrow = true, rightComponent, iconColor = COLORS.primary }) => (
-    <TouchableOpacity
-      style={[styles.settingItem, { backgroundColor: theme.card, borderColor: theme.border }]}
-      onPress={onPress}
-      activeOpacity={0.7}
-      disabled={!onPress}
-    >
-      <View style={[styles.iconContainer, { backgroundColor: iconColor + '15' }]}>
-        <Ionicons name={icon} size={22} color={iconColor} />
-      </View>
-
-      <View style={styles.settingContent}>
-        <Text style={[styles.settingTitle, { color: theme.text, fontFamily: FONTS.semiBold }]}>
-          {title}
-        </Text>
-        {subtitle ? (
-          <Text style={[styles.settingSubtitle, { color: theme.textTertiary, fontFamily: FONTS.regular }]}>
-            {subtitle}
-          </Text>
-        ) : null}
-      </View>
-
-      {rightComponent || (showArrow && (
-        <Ionicons name="chevron-forward" size={20} color={theme.textTertiary} />
-      ))}
-    </TouchableOpacity>
-  );
+  //   navigation.reset({
+  //     index: 0,
+  //     routes: [{ name: 'Login' }],
+  //   });
+  // };
 
   return (
     <View style={[styles.container, { backgroundColor: theme.bg }]}>
@@ -106,39 +77,38 @@ export default function SettingsScreen({ navigation, isDarkMode = true, toggleTh
           <Text style={[styles.title, { color: theme.text, fontFamily: FONTS.bold }]}>App Settings</Text>
         </View>
 
-        {/* Budget Management */}
+        {/* 1. Budget Management */}
         <View style={styles.section}>
-          <Text style={[styles.sectionTitle, { color: theme.textSecondary, fontFamily: FONTS.semiBold }]}>
-            Budget Management
-          </Text>
-
-          {/* Main Budget Entry Point */}
-          <SettingItem
-            icon="stats-chart-outline"
-            title="Budget Overview"
-            subtitle={salary ? `${daysUntilSalary} days until salary` : 'Set up salary budgets'}
-            onPress={() => navigation.navigate('BudgetOverview')}
-            theme={theme}
-            hasData={!!salary}
-          />
-
-          {/* Budget Alerts */}
-          <SettingItem
-            icon="notifications-outline"
-            title="Budget Alerts"
-            subtitle="Notify at 80% usage"
-            showArrow={false}
-            rightComponent={<PulseSwitch value={limitAlerts} onValueChange={setLimitAlerts} />}
-            theme={theme}
-          />
+          <Text style={[styles.sectionTitle, { color: theme.textSecondary, fontFamily: FONTS.semiBold }]}>Budget Management</Text>
+          <View style={[styles.groupedCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
+            <GeneralActionItem
+              icon="stats-chart-outline"
+              label="Budget Overview"
+              subtitle={budget ? `Monthly budget: ₹${budget.total_amount?.toLocaleString()}` : 'Set up monthly budget'}
+              theme={theme}
+              onPress={() => navigation.navigate('BudgetOverview')}
+            />
+            <GeneralActionItem
+              icon="notifications-outline"
+              label="Budget Alerts"
+              subtitle="Notify at 80% usage"
+              theme={theme}
+              isLast={true}
+              rightComponent={
+                <CustomSwitch
+                  value={limitAlerts}
+                  onValueChange={setLimitAlerts}
+                  isDarkMode={isDarkMode}
+                />
+              }
+            />
+          </View>
         </View>
 
-
-        {/* --- NEW: 2. PULSE PROGRESS (Streaks & Achievements) --- */}
+        {/* 2. Pulse Progress */}
         <View style={styles.section}>
           <Text style={[styles.sectionTitle, { color: theme.textSecondary, fontFamily: FONTS.semiBold }]}>Pulse Progress</Text>
 
-          {/* Streak Card */}
           <TouchableOpacity
             style={[styles.streakCard, { backgroundColor: COLORS.primary + '10', borderColor: COLORS.primary + '30' }]}
             onPress={() => navigation.navigate('StreakScreen')}
@@ -147,88 +117,125 @@ export default function SettingsScreen({ navigation, isDarkMode = true, toggleTh
             <View style={styles.streakInfo}>
               <Ionicons name="flame" size={28} color={COLORS.primary} />
               <View style={{ marginLeft: 12 }}>
-                <Text style={[styles.streakTitle, { color: theme.text, fontFamily: FONTS.bold }]}>12 Day Streak</Text>
-                <Text style={[styles.streakSub, { color: theme.textTertiary, fontFamily: FONTS.regular }]}>
-                  You've stayed under budget!
+                {/* 3. Use the dynamic streakCount state here */}
+                <Text style={[styles.streakTitle, { color: theme.text, fontFamily: FONTS.bold }]}>
+                  {streakCount} Day Streak
+                </Text>
+                <Text style={[styles.streakSub, { color: theme.textTertiary }]}>
+                  {streakCount > 0 ? "You're on fire!" : "Start your journey today"}
                 </Text>
               </View>
             </View>
             <Ionicons name="chevron-forward" size={20} color={COLORS.primary} />
           </TouchableOpacity>
 
-          <SettingItem
-            icon="trophy-outline"
-            title="Achievements"
-            subtitle="4 of 12 Badges Unlocked"
-            onPress={() => navigation.navigate('BadgesScreen')}
-          />
-        </View>
-
-        {/* 2. Notification Sources */}
-        <View style={styles.section}>
-          <Text style={[styles.sectionTitle, { color: theme.textSecondary, fontFamily: FONTS.semiBold }]}>Notification Sources</Text>
-          <SettingItem
-            icon="library-outline"
-            title="Supported Banks"
-            subtitle={`${Object.keys(BankPatterns.banks).length} Institutions Active`}
-            onPress={() => navigation.navigate('SupportedBanks')}
-          />
-          <SettingItem
-            icon="moon-outline"
-            title="Dark Mode"
-            subtitle={isDarkMode ? 'Enabled' : 'Disabled'}
-            showArrow={false}
-            rightComponent={<PulseSwitch value={isDarkMode} onValueChange={toggleTheme} />}
-          />
-          <SettingItem
-            icon="eye-off-outline"
-            title="Ghost Mode"
-            subtitle="Secure on-device processing"
-            onPress={() => navigation.navigate('GhostMode')}
-          />
-        </View>
-
-        {/* 3. General (Simplified List) */}
-        <View style={styles.section}>
-          <Text style={[styles.sectionTitle, { color: theme.textSecondary, fontFamily: FONTS.semiBold }]}>General</Text>
           <View style={[styles.groupedCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
-
-            <TouchableOpacity style={[styles.actionRow, { borderBottomWidth: 1, borderBottomColor: theme.border }]} onPress={() => navigation.navigate('UserProfile')}>
-              <Text style={[styles.actionLabel, { color: theme.text, fontFamily: FONTS.semiBold }]}>Account</Text>
-              <View style={styles.rowRight}>
-                <Ionicons name="chevron-forward" size={18} color={theme.textTertiary} />
-              </View>
-            </TouchableOpacity>
-
-            <TouchableOpacity style={[styles.actionRow, { borderBottomWidth: 1, borderBottomColor: theme.border }]} onPress={() => { }}>
-              <Text style={[styles.actionLabel, { color: theme.text, fontFamily: FONTS.semiBold }]}>Export Data</Text>
-              <Ionicons name="chevron-forward" size={18} color={theme.textTertiary} />
-            </TouchableOpacity>
-
-            <TouchableOpacity style={styles.actionRow} onPress={() => openModal('logout')}>
-              <Text style={[styles.actionLabel, { color: "#EF4444", fontFamily: FONTS.semiBold }]}>Log Out</Text>
-            </TouchableOpacity>
+            <GeneralActionItem
+              icon="trophy-outline"
+              label="Achievements"
+              subtitle="4 of 12 Badges Unlocked"
+              theme={theme}
+              isLast={true}
+              onPress={() => navigation.navigate('BadgesScreen')}
+            />
           </View>
         </View>
 
-        <View style={styles.branding}>
-          <Text style={[styles.brandText, { color: COLORS.primary, fontFamily: FONTS.bold }]}>Pulse</Text>
-          <Text style={[styles.tagline, { color: theme.textTertiary }]}>Version 1.0.0 (MVP)</Text>
+        {/* 3. Notification Sources & UI */}
+        <View style={styles.section}>
+          <Text style={[styles.sectionTitle, { color: theme.textSecondary, fontFamily: FONTS.semiBold }]}>Preferences</Text>
+          <View style={[styles.groupedCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
+            <GeneralActionItem
+              icon="library-outline"
+              label="Supported Banks"
+              subtitle={`${Object.keys(BankPatterns.banks).length} Institutions Active`}
+              theme={theme}
+              onPress={() => navigation.navigate('SupportedBanks')}
+            />
+            <GeneralActionItem
+              icon="moon-outline"
+              label="Dark Mode"
+              subtitle={isDarkMode ? 'Enabled' : 'Disabled'}
+              theme={theme}
+              rightComponent={
+                <CustomSwitch
+                  value={isDarkMode}
+                  onValueChange={toggleTheme}
+                  isDarkMode={isDarkMode}
+                />
+              }
+            />
+            <GeneralActionItem
+              icon="eye-off-outline"
+              label="Ghost Mode"
+              subtitle="Secure on-device processing"
+              theme={theme}
+              isLast={true}
+              onPress={() => navigation.navigate('GhostMode')}
+            />
+          </View>
         </View>
 
-        <View style={{ height: 120 }} />
+        {/* 4. General */}
+        <View style={styles.section}>
+          <Text style={[styles.sectionTitle, { color: theme.textSecondary, fontFamily: FONTS.semiBold }]}>General</Text>
+          <View style={[styles.groupedCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
+            <GeneralActionItem
+              label="Account"
+              subtitle="Profile and Security"
+              theme={theme}
+              isLast={true}
+              onPress={() => navigation.navigate('UserProfile')}
+            />
+            {/* <GeneralActionItem
+              label="Export Data"
+              subtitle="Download your history (CSV)"
+              theme={theme}
+              onPress={() => { }}
+            /> */}
+            {/* <GeneralActionItem
+              label="Log Out"
+              theme={theme}
+              isLast={true}
+              isDestructive={true}
+              onPress={() => {
+                setModalType('logout');
+                setModalVisible(true);
+              }}
+            /> */}
+          </View>
+        </View>
+
+        {/* Updated Hero Branding */}
+        <View style={styles.fullWidthBranding}>
+          <Text
+            numberOfLines={1}
+            adjustsFontSizeToFit
+            style={[styles.megaBrandText, { color: theme.text, opacity: 0.04 }]}
+          >
+            Your finances, in sync.
+          </Text>
+
+          <View style={styles.footerInfo}>
+            <Text style={[styles.tagline, { color: theme.textTertiary, fontFamily: FONTS.medium }]}>
+              VERSION 1.0.0
+            </Text>
+          </View>
+        </View>
+
+        <View style={{ height: 100 }} />
       </ScrollView>
 
-      <PulseModal
+      {/* <PulseModal
         visible={modalVisible}
         type={modalType}
         isDarkMode={isDarkMode}
         onPrimaryPress={handleLogout}
         onSecondaryPress={() => setModalVisible(false)}
         onClose={() => setModalVisible(false)}
-      />
+      /> */}
 
-      <BottomNavBar active="Settings" onNavigate={handleNavigate} isDarkMode={isDarkMode} />
+      <BottomNavBar active="Settings" onNavigate={(screen) => navigation.navigate(screen)} isDarkMode={isDarkMode} />
     </View>
   );
 }
@@ -272,5 +279,33 @@ const styles = StyleSheet.create({
   },
   streakSub: {
     fontSize: 12,
+  },
+
+
+  fullWidthBranding: {
+    marginTop: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: '100%',
+    paddingHorizontal: 0,
+  },
+  megaBrandText: {
+    fontSize: 120,
+    fontFamily: FONTS.bold,
+    letterSpacing: -2,
+    textAlign: 'center',
+    width: '110%',
+    lineHeight: 180,
+    includeFontPadding: false,
+  },
+  footerInfo: {
+    position: 'absolute',
+    bottom: 20,
+    alignItems: 'center',
+  },
+  tagline: {
+    fontSize: 10,
+    letterSpacing: 3,
+    opacity: 0.5,
   },
 });

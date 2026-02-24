@@ -10,78 +10,68 @@ import {
     ActivityIndicator,
     Animated,
     Dimensions,
+    Modal,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { format, differenceInDays } from 'date-fns';
+import { format, startOfMonth, endOfMonth, differenceInDays } from 'date-fns';
+
 import { getThemedColors, COLORS } from '../constants/Colors';
 import { FONTS, FONT_SIZES } from '../constants/Fonts';
-import { useSalary } from '../hooks/useSalary';
+
 import { useDatabase } from '../context/DatabaseContext';
-import SalaryDB from '../database/SalaryDB';
-import Toast from '../components/Toast';
+import BudgetDB from '../database/BudgetDB';
+
 import { useToast } from '../hooks/useToast';
-import { LinearGradient } from 'expo-linear-gradient';
+
+import Toast from '../components/Toast';
+import ScreenHeader from '../components/ScreenHeader';
+import Button from '../components/Button';
+import BudgetDetailedCard from '../components/BudgetDetailedCard';
 
 const { width } = Dimensions.get('window');
 
 export default function BudgetOverviewScreen({ navigation, isDarkMode = true }) {
     const theme = getThemedColors(isDarkMode);
-    const { salary, currentCycle, daysUntilSalary, hasSalary, isLoading: salaryLoading } = useSalary();
     const { isInitialized, db } = useDatabase();
     const { toast, showSuccess, showError, hideToast } = useToast();
 
-    const [cycleBudget, setCycleBudget] = useState(null);
+    const [monthlyBudget, setMonthlyBudget] = useState(null);
     const [spending, setSpending] = useState({});
     const [isLoading, setIsLoading] = useState(true);
     const [fadeAnim] = useState(new Animated.Value(0));
 
+    const now = new Date();
+    const currentMonth = format(now, 'MMMM yyyy');
+    const monthStart = startOfMonth(now);
+    const monthEnd = endOfMonth(now);
+    const daysInMonth = differenceInDays(monthEnd, monthStart) + 1;
+    const daysPassed = differenceInDays(now, monthStart) + 1;
+    const daysRemaining = differenceInDays(monthEnd, now);
+
     useEffect(() => {
-        if (isInitialized && hasSalary) {
+        if (isInitialized) {
             loadBudgetData();
-        } else if (!salaryLoading && !hasSalary) {
-            // No salary configured - check if we should show setup
-            checkIfSetupAvailable();
         }
-    }, [isInitialized, hasSalary, salaryLoading]);
-
-    const checkIfSetupAvailable = async () => {
-        try {
-            // Get credit transactions to see if we can detect salary
-            const credits = await db.getAllTransactions({ type: 'credit' });
-
-            if (credits.length >= 2) {
-                // We have enough data - redirect to setup
-                navigation.replace('SalaryScreen');
-            } else {
-                // Not enough data - stay here and show message
-                setIsLoading(false);
-            }
-        } catch (error) {
-            console.error('❌ Error checking setup availability:', error);
-            setIsLoading(false);
-        }
-    };
+    }, [isInitialized]);
 
     const loadBudgetData = async () => {
         try {
             setIsLoading(true);
 
-            // Load current cycle budget
-            const budget = await SalaryDB.getCurrentCycleBudget();
-            setCycleBudget(budget);
+            // Load current month's budget
+            const budget = await BudgetDB.getCurrentBudget();
+            setMonthlyBudget(budget);
 
-            // Load actual spending for current cycle
-            if (currentCycle) {
-                const startDate = format(currentCycle.startDate, 'yyyy-MM-dd');
-                const endDate = format(new Date(), 'yyyy-MM-dd');
+            // Load actual spending for current month
+            const startDate = format(monthStart, 'yyyy-MM-dd');
+            const endDate = format(now, 'yyyy-MM-dd');
 
-                const categories = await db.getSpendingByCategory(startDate, endDate);
-                const spendingMap = {};
-                categories.forEach(cat => {
-                    spendingMap[cat.category] = cat.spent || 0;
-                });
-                setSpending(spendingMap);
-            }
+            const categories = await db.getSpendingByCategory(startDate, endDate);
+            const spendingMap = {};
+            categories.forEach(cat => {
+                spendingMap[cat.category] = cat.spent || 0;
+            });
+            setSpending(spendingMap);
 
             Animated.timing(fadeAnim, {
                 toValue: 1,
@@ -97,25 +87,23 @@ export default function BudgetOverviewScreen({ navigation, isDarkMode = true }) 
     };
 
     // Calculate totals
-    const totalSpent = Object.values(spending).reduce((sum, amt) => sum + amt, 0);
-    const budgetAmount = cycleBudget?.total_amount || salary?.amount || 0;
+    const totalSpent = Math.round(Object.values(spending).reduce((sum, amt) => sum + amt, 0));
+    const budgetAmount = Math.round(monthlyBudget?.total_amount || 0);
     const remaining = budgetAmount - totalSpent;
     const spentPercentage = budgetAmount > 0 ? (totalSpent / budgetAmount) * 100 : 0;
 
     // Calculate daily burn rate and projections
-    const daysInCycle = currentCycle?.daysInCycle || 30;
-    const daysPassed = currentCycle ? daysInCycle - (currentCycle.daysRemaining || 0) : 0;
     const dailyBurnRate = daysPassed > 0 ? totalSpent / daysPassed : 0;
-    const projectedSpending = dailyBurnRate * daysInCycle;
+    const projectedSpending = dailyBurnRate * daysInMonth;
     const projectedRemaining = budgetAmount - projectedSpending;
-    const safeDailyRate = budgetAmount / daysInCycle;
+    const safeDailyRate = budgetAmount / daysInMonth;
 
     // Status
     const isOverBudget = spentPercentage > 100;
     const isWarning = spentPercentage > 80 && !isOverBudget;
     const isOnPace = dailyBurnRate <= safeDailyRate;
 
-    if (isLoading || salaryLoading) {
+    if (isLoading) {
         return (
             <View style={[styles.container, { backgroundColor: theme.bg, justifyContent: 'center', alignItems: 'center' }]}>
                 <StatusBar barStyle={isDarkMode ? 'light-content' : 'dark-content'} />
@@ -127,22 +115,19 @@ export default function BudgetOverviewScreen({ navigation, isDarkMode = true }) 
         );
     }
 
-    // Show empty state if no salary and not enough data
-    if (!hasSalary && !isLoading) {
+    // Show empty state if no budget set
+    if (!monthlyBudget) {
         return (
             <View style={[styles.container, { backgroundColor: theme.bg }]}>
                 <StatusBar barStyle={isDarkMode ? 'light-content' : 'dark-content'} />
 
-                {/* Header */}
-                <View style={styles.header}>
-                    <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-                        <Ionicons name="chevron-back" size={28} color={theme.text} />
-                    </TouchableOpacity>
-                    <Text style={[styles.headerTitle, { color: theme.text, fontFamily: FONTS.bold }]}>
-                        Budget Overview
-                    </Text>
-                    <View style={{ width: 40 }} />
-                </View>
+                <ScreenHeader
+                    mode="simple"
+                    theme={theme}
+                    title="Budget Overview"
+                    showBack={true}
+                    onBackPress={() => navigation.goBack()}
+                />
 
                 <View style={styles.emptyStateContainer}>
                     <View style={[styles.emptyIconCircle, { backgroundColor: theme.cardElevated }]}>
@@ -150,29 +135,20 @@ export default function BudgetOverviewScreen({ navigation, isDarkMode = true }) 
                     </View>
 
                     <Text style={[styles.emptyTitle, { color: theme.text, fontFamily: FONTS.bold }]}>
-                        Budget Not Set Up
+                        No Budget Set
                     </Text>
 
-                    <Text style={[styles.emptyMessage, { color: theme.textSecondary, fontFamily: FONTS.regular }]}>
-                        We need a few salary credits to detect your income pattern. Keep using the app and we'll
-                        notify you when we can set up your budget automatically!
+                    <Text style={[styles.emptyMessage, { color: theme.textSecondary, fontFamily: FONTS.regular, textAlign: 'center', marginBottom: 30 }]}>
+                        Set your monthly budget to track spending, get insights, and stay on top of your finances.
                     </Text>
 
-                    <TouchableOpacity
-                        style={[styles.manualSetupButton, { backgroundColor: COLORS.primary }]}
-                        onPress={() => navigation.navigate('SalarySetup')}
-                    >
-                        <Text style={[styles.manualSetupText, { fontFamily: FONTS.semiBold }]}>
-                            Set Up Manually
-                        </Text>
-                    </TouchableOpacity>
-
-                    <View style={[styles.infoBox, { backgroundColor: COLORS.primary + '15', marginTop: 30 }]}>
-                        <Ionicons name="information-circle-outline" size={20} color={COLORS.primary} />
-                        <Text style={[styles.infoText, { color: theme.textSecondary, fontFamily: FONTS.regular }]}>
-                            Tip: Add at least 2 salary credit transactions for automatic detection
-                        </Text>
-                    </View>
+                    <Button
+                        title="Set Up Budget"
+                        variant="primary"
+                        size="medium"
+                        icon="add-circle-outline"
+                        onPress={() => navigation.navigate('BudgetSetting')}
+                    />
                 </View>
             </View>
         );
@@ -182,181 +158,83 @@ export default function BudgetOverviewScreen({ navigation, isDarkMode = true }) 
         <View style={[styles.container, { backgroundColor: theme.bg }]}>
             <StatusBar barStyle={isDarkMode ? 'light-content' : 'dark-content'} />
 
-            {/* Header */}
-            <View style={styles.header}>
-                <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-                    <Ionicons name="chevron-back" size={28} color={theme.text} />
-                </TouchableOpacity>
-                <Text style={[styles.headerTitle, { color: theme.text, fontFamily: FONTS.bold }]}>
-                    Budget Overview
-                </Text>
-                <TouchableOpacity onPress={() => navigation.navigate('BudgetSetting')}>
-                    <Ionicons name="settings-outline" size={24} color={theme.text} />
-                </TouchableOpacity>
-            </View>
+            <ScreenHeader
+                mode="simple"
+                theme={theme}
+                title="Budget Overview"
+                showBack={true}
+                onBackPress={() => navigation.goBack()}
+                rightIcon={<Ionicons name="create-outline" size={24} color={theme.text} />}
+                onRightPress={() => navigation.navigate('BudgetSetting')}
+            />
 
             <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
                 <Animated.View style={{ opacity: fadeAnim }}>
 
-                    {/* Salary Cycle Card */}
-                    <View style={[styles.cycleCard, { backgroundColor: theme.cardElevated }]}>
-                        {/* Top Row - Date and Days Left */}
-                        <View style={styles.cycleHeaderRow}>
-                            <View style={{ flex: 1 }}>
-                                <Text style={[styles.cycleLabel, { color: theme.textSecondary, fontFamily: FONTS.medium }]}>
-                                    CURRENT CYCLE
-                                </Text>
-                                <Text style={[styles.cycleDates, { color: theme.text, fontFamily: FONTS.semiBold }]}>
-                                    {currentCycle && format(currentCycle.startDate, 'MMM dd')} - {currentCycle && format(currentCycle.endDate, 'MMM dd')}
-                                </Text>
-                            </View>
-                            <View style={[styles.daysLeftBadge, { backgroundColor: COLORS.primary + '20' }]}>
-                                <Text style={[styles.daysLeftNumber, { color: COLORS.primary, fontFamily: FONTS.bold }]}>
-                                    {daysUntilSalary || 0}
-                                </Text>
-                                <Text style={[styles.daysLeftLabel, { color: COLORS.primary, fontFamily: FONTS.regular }]}>
-                                    days
-                                </Text>
-                            </View>
-                        </View>
+                    {/* Monthly Budget Card */}
+                    <BudgetDetailedCard
+                        totalSpent={totalSpent}
+                        budgetAmount={budgetAmount}
+                        spentPercentage={spentPercentage}
+                        daysRemaining={daysRemaining}
+                        dailyBurnRate={dailyBurnRate}
+                        theme={theme}
+                        isOverBudget={isOverBudget}
+                        isWarning={isWarning}
+                    />
 
-
-                        {/* Main Amount */}
-                        <View style={styles.mainAmountContainer}>
-                            <Text style={[styles.mainAmountLabel, { color: theme.textSecondary, fontFamily: FONTS.regular }]}>
-                                Total Spent
-                            </Text>
-                            <Text style={[styles.mainAmount, { color: theme.text, fontFamily: FONTS.bold }]}>
-                                ₹{totalSpent.toLocaleString()}
-                            </Text>
-                            <Text style={[styles.budgetLabel, { color: theme.textTertiary, fontFamily: FONTS.regular }]}>
-                                of ₹{budgetAmount.toLocaleString()}
-                            </Text>
-                        </View>
-
-                        {/* Progress Bar */}
-                        <View style={[styles.largeProgressBar, { backgroundColor: theme.border }]}>
-                            <View style={[
-                                styles.largeProgressFill,
-                                {
-                                    width: `${Math.min(spentPercentage, 100)}%`,
-                                    backgroundColor: isOverBudget ? COLORS.error : isWarning ? '#FF9500' : COLORS.primary,
-                                }
-                            ]} />
-                        </View>
-
-                        <View style={styles.statsGrid}>
-                            <View style={styles.statColumn}>
-                                <Text style={[styles.statValue, {
-                                    color: remaining >= 0 ? COLORS.primary : COLORS.error,
-                                    fontFamily: FONTS.bold
-                                }]}>
-                                    ₹{Math.abs(remaining).toLocaleString()}
-                                </Text>
-                                <Text style={[styles.statLabel, { color: theme.textSecondary, fontFamily: FONTS.regular }]}>
-                                    {remaining >= 0 ? 'Remaining' : 'Over Budget'}
-                                </Text>
-                            </View>
-
-                            <View style={[styles.verticalDivider, { backgroundColor: theme.border }]} />
-
-                            <View style={styles.statColumn}>
-                                <Text style={[styles.statValue, {
-                                    color: isOverBudget ? COLORS.error : COLORS.primary,
-                                    fontFamily: FONTS.bold
-                                }]}>
-                                    {Math.round(spentPercentage)}%
-                                </Text>
-                                <Text style={[styles.statLabel, { color: theme.textSecondary, fontFamily: FONTS.regular }]}>
-                                    Used
-                                </Text>
-                            </View>
-
-                            <View style={[styles.verticalDivider, { backgroundColor: theme.border }]} />
-
-                            <View style={styles.statColumn}>
-                                <Text style={[styles.statValue, { color: theme.text, fontFamily: FONTS.bold }]}>
-                                    ₹{dailyBurnRate.toFixed(0)}
-                                </Text>
-                                <Text style={[styles.statLabel, { color: theme.textSecondary, fontFamily: FONTS.regular }]}>
-                                    Daily
-                                </Text>
-                            </View>
-                        </View>
-                    </View>
-
-                    {/* Smart Insights */}
                     <View style={styles.insightsSection}>
                         <Text style={[styles.sectionTitle, { color: theme.text, fontFamily: FONTS.bold }]}>
                             Smart Insights
                         </Text>
 
-                        {/* Burn Rate Insight */}
-                        <View style={[styles.insightCard, {
-                            backgroundColor: isOnPace ? COLORS.primary + '15' : '#FF9500' + '15'
-                        }]}>
-                            <Ionicons
-                                name={isOnPace ? "trending-down" : "trending-up"}
-                                size={24}
-                                color={isOnPace ? COLORS.primary : '#FF9500'}
-                            />
-                            <View style={styles.insightContent}>
-                                <Text style={[styles.insightTitle, { color: theme.text, fontFamily: FONTS.semiBold }]}>
-                                    Daily Spending Pace
-                                </Text>
-                                <Text style={[styles.insightText, { color: theme.textSecondary, fontFamily: FONTS.regular }]}>
-                                    You're spending ₹{dailyBurnRate.toFixed(0)}/day. {isOnPace
-                                        ? `Great! Stay under ₹${safeDailyRate.toFixed(0)}/day to hit your budget.`
-                                        : `Slow down! Try to stay under ₹${safeDailyRate.toFixed(0)}/day.`
-                                    }
-                                </Text>
+                        <View style={styles.bentoGrid}>
+                            {/* Compact Large Tile */}
+                            <View style={[styles.bentoTile, styles.largeTile, { backgroundColor: theme.cardElevated, borderColor: theme.border }]}>
+                                <View style={styles.tileMainContent}>
+                                    <View style={[styles.iconCircle, { backgroundColor: projectedRemaining >= 0 ? COLORS.primary + '15' : COLORS.error + '15' }]}>
+                                        <Ionicons
+                                            name="analytics"
+                                            size={20}
+                                            color={projectedRemaining >= 0 ? COLORS.primary : COLORS.error}
+                                        />
+                                    </View>
+                                    <View style={styles.tileTextContent}>
+                                        <Text style={[styles.tileLabel, { color: theme.textTertiary }]}>FORECAST</Text>
+                                        <Text style={[styles.tileValue, { color: theme.text }]}>₹{projectedSpending.toLocaleString(undefined, { maximumFractionDigits: 0 })}</Text>
+                                    </View>
+                                    <View style={styles.badge}>
+                                        <Text style={[styles.badgeText, { color: projectedRemaining >= 0 ? COLORS.primary : COLORS.error }]}>
+                                            {projectedRemaining >= 0 ? 'On Track' : 'Over'}
+                                        </Text>
+                                    </View>
+                                </View>
                             </View>
-                        </View>
 
-                        {/* Projection Insight */}
-                        <View style={[styles.insightCard, {
-                            backgroundColor: projectedRemaining >= 0 ? COLORS.primary + '15' : COLORS.error + '15'
-                        }]}>
-                            <Ionicons
-                                name="analytics-outline"
-                                size={24}
-                                color={projectedRemaining >= 0 ? COLORS.primary : COLORS.error}
-                            />
-                            <View style={styles.insightContent}>
-                                <Text style={[styles.insightTitle, { color: theme.text, fontFamily: FONTS.semiBold }]}>
-                                    End of Cycle Forecast
-                                </Text>
-                                <Text style={[styles.insightText, { color: theme.textSecondary, fontFamily: FONTS.regular }]}>
-                                    At current pace, you'll spend ₹{projectedSpending.toFixed(0)} total.
-                                    {projectedRemaining >= 0
-                                        ? ` You'll save ₹${projectedRemaining.toFixed(0)}! 🎉`
-                                        : ` You'll overspend by ₹${Math.abs(projectedRemaining).toFixed(0)} ⚠️`
-                                    }
-                                </Text>
-                            </View>
-                        </View>
+                            <View style={styles.bentoRow}>
+                                {/* Compact Small Tile 1 */}
+                                <View style={[styles.bentoTile, styles.smallTile, { backgroundColor: theme.cardElevated, borderColor: theme.border }]}>
+                                    <View style={styles.compactRow}>
+                                        <Ionicons name={isOnPace ? "leaf" : "speedometer"} size={16} color={isOnPace ? '#10B981' : '#F59E0B'} />
+                                        <Text style={[styles.tileLabel, { color: theme.textTertiary, marginLeft: 6 }]}>PACE</Text>
+                                    </View>
+                                    <Text style={[styles.tileValueSmall, { color: theme.text }]}>₹{dailyBurnRate.toFixed(0)}/d</Text>
+                                </View>
 
-                        {/* Next Salary Countdown */}
-                        <View style={[styles.insightCard, { backgroundColor: theme.cardElevated }]}>
-                            <Ionicons name="calendar-outline" size={24} color={COLORS.primary} />
-                            <View style={styles.insightContent}>
-                                <Text style={[styles.insightTitle, { color: theme.text, fontFamily: FONTS.semiBold }]}>
-                                    Next Salary
-                                </Text>
-                                <Text style={[styles.insightText, { color: theme.textSecondary, fontFamily: FONTS.regular }]}>
-                                    {daysUntilSalary === 0
-                                        ? 'Today! 💰'
-                                        : daysUntilSalary === 1
-                                            ? 'Tomorrow! 💸'
-                                            : `In ${daysUntilSalary} days - ${currentCycle && format(currentCycle.endDate, 'MMM dd')}`
-                                    }
-                                </Text>
+                                {/* Compact Small Tile 2 */}
+                                <View style={[styles.bentoTile, styles.smallTile, { backgroundColor: theme.cardElevated, borderColor: theme.border }]}>
+                                    <View style={styles.compactRow}>
+                                        <Ionicons name="calendar" size={16} color={COLORS.primary} />
+                                        <Text style={[styles.tileLabel, { color: theme.textTertiary, marginLeft: 6 }]}>PROGRESS</Text>
+                                    </View>
+                                    <Text style={[styles.tileValueSmall, { color: theme.text }]}>{Math.round((daysPassed / daysInMonth) * 100)}%</Text>
+                                </View>
                             </View>
                         </View>
                     </View>
 
                     {/* Category Breakdown */}
-                    {cycleBudget?.allocations && (
+                    {monthlyBudget?.allocations && (
                         <View style={styles.categoriesSection}>
                             <View style={styles.sectionHeader}>
                                 <Text style={[styles.sectionTitle, { color: theme.text, fontFamily: FONTS.bold }]}>
@@ -369,7 +247,7 @@ export default function BudgetOverviewScreen({ navigation, isDarkMode = true }) 
                                 </TouchableOpacity>
                             </View>
 
-                            {cycleBudget.allocations.map((allocation, index) => {
+                            {monthlyBudget.allocations.map((allocation, index) => {
                                 const spent = spending[allocation.category] || 0;
                                 const allocated = allocation.allocated_amount;
                                 const percentage = allocated > 0 ? (spent / allocated) * 100 : 0;
@@ -431,128 +309,81 @@ export default function BudgetOverviewScreen({ navigation, isDarkMode = true }) 
 
 const styles = StyleSheet.create({
     container: { flex: 1 },
-    header: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        paddingTop: 60,
-        paddingHorizontal: 20,
-        paddingBottom: 20,
-    },
-    headerTitle: { fontSize: FONT_SIZES.lg },
     loadingText: { marginTop: 15, fontSize: FONT_SIZES.base },
     scrollContent: { paddingHorizontal: 20 },
-    cycleCard: {
-        borderRadius: 20,
-        padding: 20,
+    insightsSection: {
         marginBottom: 20,
     },
-    cycleHeaderRow: {
-        flexDirection: 'row',
-        alignItems: 'flex-start',
-        justifyContent: 'space-between',
-        marginBottom: 24,
-    },
-    cycleLabel: {
-        fontSize: FONT_SIZES.xs,
-        letterSpacing: 1,
-        marginBottom: 4,
-    },
-    cycleDates: {
-        fontSize: FONT_SIZES.base,
-    },
-    daysLeftBadge: {
-        paddingHorizontal: 12,
-        paddingVertical: 8,
-        borderRadius: 12,
-        alignItems: 'center',
-        minWidth: 60,
-    },
-    daysLeftNumber: {
-        fontSize: 24,
-        lineHeight: 28,
-    },
-    daysLeftLabel: {
-        fontSize: FONT_SIZES.xs,
-    },
-
-    // Main amount display
-    mainAmountContainer: {
-        alignItems: 'center',
-        marginBottom: 20,
-    },
-    mainAmountLabel: {
-        fontSize: FONT_SIZES.sm,
-        marginBottom: 8,
-    },
-    mainAmount: {
-        fontSize: 40,
-        marginBottom: 4,
-    },
-    budgetLabel: {
-        fontSize: FONT_SIZES.base,
-    },
-
-    // Large progress bar
-    largeProgressBar: {
-        height: 12,
-        borderRadius: 6,
-        overflow: 'hidden',
-        marginBottom: 20,
-    },
-    largeProgressFill: {
-        height: '100%',
-        borderRadius: 6,
-    },
-
-    // Stats grid (3 columns)
-    statsGrid: {
-        flexDirection: 'row',
-        alignItems: 'center',
-    },
-    statColumn: {
-        flex: 1,
-        alignItems: 'center',
-    },
-    statValue: {
-        fontSize: FONT_SIZES.lg,
-        marginBottom: 4,
-    },
-    statLabel: {
-        fontSize: FONT_SIZES.xs,
-    },
-    verticalDivider: {
-        width: 1,
-        height: 40,
-        marginHorizontal: 8,
-    },
-    divider: {
-        height: 1,
-        marginVertical: 8,
-    },
-
-    insightsSection: { marginBottom: 30 },
     sectionTitle: {
-        fontSize: FONT_SIZES.xl,
-        marginBottom: 15,
-    },
-    insightCard: {
-        flexDirection: 'row',
-        padding: 16,
-        borderRadius: 16,
+        fontSize: 16,
         marginBottom: 12,
-        gap: 12,
+        paddingLeft: 4,
     },
-    insightContent: { flex: 1 },
-    insightTitle: {
-        fontSize: FONT_SIZES.base,
-        marginBottom: 4,
+    bentoGrid: {
+        gap: 10,
     },
-    insightText: {
-        fontSize: FONT_SIZES.sm,
-        lineHeight: 20,
+    bentoRow: {
+        flexDirection: 'row',
+        gap: 10,
     },
-
+    bentoTile: {
+        borderRadius: 20, // Slightly tighter corners
+        padding: 14, // Reduced from 20
+        borderWidth: 1,
+    },
+    largeTile: {
+        width: '100%',
+        minHeight: 70, // Much shorter
+        justifyContent: 'center',
+    },
+    smallTile: {
+        flex: 1,
+        minHeight: 80, // Much shorter
+        justifyContent: 'center',
+    },
+    tileMainContent: {
+        flexDirection: 'row',
+        alignItems: 'center',
+    },
+    iconCircle: {
+        width: 38,
+        height: 38,
+        borderRadius: 12,
+        justifyContent: 'center',
+        alignItems: 'center',
+        marginRight: 12,
+    },
+    compactRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginBottom: 6,
+    },
+    tileTextContent: {
+        flex: 1,
+    },
+    tileLabel: {
+        fontSize: 9, // Shrunk font
+        fontFamily: FONTS.bold,
+        letterSpacing: 0.5,
+    },
+    tileValue: {
+        fontSize: 22, // Shrunk from 28
+        fontFamily: FONTS.bold,
+    },
+    tileValueSmall: {
+        fontSize: 18, // Shrunk from 20
+        fontFamily: FONTS.bold,
+    },
+    badge: {
+        paddingHorizontal: 8,
+        paddingVertical: 4,
+        borderRadius: 8,
+        backgroundColor: 'rgba(255,255,255,0.05)',
+    },
+    badgeText: {
+        fontSize: 10,
+        fontFamily: FONTS.bold,
+    },
     categoriesSection: { marginBottom: 30 },
     sectionHeader: {
         flexDirection: 'row',
@@ -561,7 +392,6 @@ const styles = StyleSheet.create({
         marginBottom: 15,
     },
     editLink: { fontSize: FONT_SIZES.base },
-
     categoryCard: {
         padding: 16,
         borderRadius: 16,
@@ -574,7 +404,6 @@ const styles = StyleSheet.create({
     },
     categoryName: { fontSize: FONT_SIZES.base },
     categoryAmount: { fontSize: FONT_SIZES.base },
-
     progressBar: {
         height: 8,
         borderRadius: 4,
@@ -585,15 +414,12 @@ const styles = StyleSheet.create({
         height: '100%',
         borderRadius: 4,
     },
-
     categoryFooter: {
         flexDirection: 'row',
         justifyContent: 'space-between',
     },
     categoryPercentage: { fontSize: FONT_SIZES.xs },
     categoryRemaining: { fontSize: FONT_SIZES.xs },
-
-    // Empty state styles
     emptyStateContainer: {
         flex: 1,
         justifyContent: 'center',
@@ -619,12 +445,12 @@ const styles = StyleSheet.create({
         lineHeight: 24,
         marginBottom: 30,
     },
-    manualSetupButton: {
+    setupButton: {
         paddingHorizontal: 32,
         paddingVertical: 16,
         borderRadius: 25,
     },
-    manualSetupText: {
+    setupButtonText: {
         color: '#000',
         fontSize: FONT_SIZES.base,
     },

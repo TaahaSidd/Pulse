@@ -3,6 +3,8 @@ import { StyleSheet, Text, View, TouchableOpacity, ScrollView } from 'react-nati
 import { Ionicons } from '@expo/vector-icons';
 import { getThemedColors, COLORS } from '../constants/Colors';
 import { FONTS } from '../constants/Fonts';
+
+import ScreenHeader from '../components/ScreenHeader';
 import Button from '../components/Button';
 
 export default function PersonalInfoScreen({ navigation, isDarkMode = true }) {
@@ -17,17 +19,28 @@ export default function PersonalInfoScreen({ navigation, isDarkMode = true }) {
 
   return (
     <View style={[styles.container, { backgroundColor: theme.bg }]}>
-      <View style={styles.header}>
+      {/* <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()}>
           <Ionicons name="chevron-back" size={28} color={COLORS.primary} />
         </TouchableOpacity>
         <TouchableOpacity>
           <Text style={[styles.headerLink, { color: COLORS.primary, fontFamily: FONTS.semiBold }]}>Help</Text>
         </TouchableOpacity>
-      </View>
+      </View> */}
 
-      <ScrollView contentContainerStyle={styles.scrollContent}>
-        <Text style={[styles.screenTitle, { color: theme.text, fontFamily: FONTS.bold }]}>Personal Information</Text>
+      <ScreenHeader
+        mode="simple"
+        theme={theme}
+        title="Personal Information"
+        showBack={true}
+        onBackPress={() => navigation.goBack()}
+      />
+
+      <ScrollView contentContainerStyle=
+        {styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+      >
+        {/* <Text style={[styles.screenTitle, { color: theme.text, fontFamily: FONTS.bold }]}>Personal Information</Text> */}
 
         <View style={styles.avatarSection}>
           <View style={[styles.avatarCircle, { backgroundColor: theme.card }]}>

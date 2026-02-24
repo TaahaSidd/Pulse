@@ -1,56 +1,98 @@
 import React, { useState } from 'react';
-import { StyleSheet, ScrollView, Text, View, TextInput, TouchableOpacity, KeyboardAvoidingView, Platform } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
-import { getThemedColors, COLORS } from '../constants/Colors';
+import {
+    StyleSheet,
+    ScrollView,
+    Text,
+    View,
+    TextInput,
+    KeyboardAvoidingView,
+    Platform,
+    Alert
+} from 'react-native';
+import { getThemedColors } from '../constants/Colors';
 import { FONTS } from '../constants/Fonts';
+
+import ScreenHeader from '../components/ScreenHeader';
 import Button from '../components/Button';
+import SegmentedFilter from '../components/SegmentedFilter'; // 🆕 Import the chonky filter
 
 export default function FeedbackScreen({ navigation, isDarkMode = true }) {
     const theme = getThemedColors(isDarkMode);
     const [feedback, setFeedback] = useState('');
     const [type, setType] = useState('Bug');
 
+    const feedbackOptions = ['Bug', 'Suggestion', 'Support'];
+
+    const handleSubmit = () => {
+        if (feedback.trim().length < 5) {
+            Alert.alert("Wait a second", "Please provide a bit more detail before submitting.");
+            return;
+        }
+
+        // Logic for submission would go here
+        Alert.alert("Thanks!", "Our team will look into your " + type.toLowerCase() + " report.");
+        navigation.goBack();
+    };
+
     return (
         <View style={[styles.container, { backgroundColor: theme.bg }]}>
-            <View style={styles.header}>
-                <TouchableOpacity onPress={() => navigation.goBack()}><Ionicons name="chevron-back" size={28} color={theme.text} /></TouchableOpacity>
-                <Text style={[styles.headerTitle, { color: theme.text, fontFamily: FONTS.bold }]}>Send Feedback</Text>
-            </View>
+            <ScreenHeader
+                mode="simple"
+                theme={theme}
+                title="Send Feedback"
+                showBack={true}
+                onBackPress={() => navigation.goBack()}
+            />
 
-            <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
-                <ScrollView contentContainerStyle={styles.content}>
+            <KeyboardAvoidingView
+                behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+                style={{ flex: 1 }}
+            >
+                <ScrollView
+                    contentContainerStyle={styles.content}
+                    showsVerticalScrollIndicator={false}
+                >
                     <Text style={[styles.label, { color: theme.textSecondary }]}>FEEDBACK TYPE</Text>
-                    <View style={styles.typeRow}>
-                        {['Bug', 'Suggestion', 'Bank Support'].map((t) => (
-                            <TouchableOpacity
-                                key={t}
-                                onPress={() => setType(t)}
-                                style={[styles.typeChip, { backgroundColor: type === t ? COLORS.primary : theme.card }]}
-                            >
-                                <Text style={{ color: type === t ? '#000' : theme.textTertiary, fontFamily: FONTS.bold, fontSize: 12 }}>{t}</Text>
-                            </TouchableOpacity>
-                        ))}
+
+                    <View style={styles.filterWrapper}>
+                        <SegmentedFilter
+                            options={feedbackOptions}
+                            activeFilter={type}
+                            onSelect={setType}
+                            theme={theme}
+                        />
                     </View>
 
-                    <Text style={[styles.label, { color: theme.textSecondary }]}>MESSAGE</Text>
+                    <Text style={[styles.label, { color: theme.textSecondary }]}>YOUR MESSAGE</Text>
                     <TextInput
                         multiline
                         numberOfLines={6}
-                        style={[styles.textArea, { backgroundColor: theme.card, color: theme.text, borderColor: theme.border }]}
+                        style={[
+                            styles.textArea,
+                            {
+                                backgroundColor: theme.card,
+                                color: theme.text,
+                                borderColor: theme.border
+                            }
+                        ]}
                         placeholder="Tell us what's on your mind..."
                         placeholderTextColor={theme.textTertiary}
                         value={feedback}
                         onChangeText={setFeedback}
+                        textAlignVertical="top"
                     />
 
-                    <Button
-                        title="Submit Feedback"
-                        onPress={() => {
-                            alert("Thanks! Our team will look into this.");
-                            navigation.goBack();
-                        }}
-                        style={{ marginTop: 20 }}
-                    />
+                    <View style={styles.buttonWrapper}>
+                        <Button
+                            title="Submit Feedback"
+                            onPress={handleSubmit}
+                            disabled={feedback.trim().length === 0}
+                        />
+                    </View>
+
+                    <Text style={[styles.hintText, { color: theme.textTertiary }]}>
+                        We usually respond to support requests within 24 hours.
+                    </Text>
                 </ScrollView>
             </KeyboardAvoidingView>
         </View>
@@ -61,83 +103,39 @@ const styles = StyleSheet.create({
     container: {
         flex: 1,
     },
-    header: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        paddingTop: 60,
-        paddingHorizontal: 20,
-        marginBottom: 20,
-    },
-    headerTitle: {
-        fontSize: 20,
-        marginLeft: 12,
-    },
     content: {
         paddingHorizontal: 20,
         paddingBottom: 40,
     },
-    searchBar: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        paddingHorizontal: 16,
-        height: 56,
-        borderRadius: 16,
-        borderWidth: 1,
-        marginBottom: 25,
+    label: {
+        fontSize: 11,
+        letterSpacing: 1.5,
+        marginBottom: 12,
+        marginTop: 25,
+        fontFamily: FONTS.bold,
+        marginLeft: 4,
     },
-    searchInput: {
-        flex: 1,
-        marginLeft: 12,
+    filterWrapper: {
+        flexDirection: 'row', // Required because SegmentedFilter has flex: 1
+        height: 54,
+        marginBottom: 10,
+    },
+    textArea: {
+        borderRadius: 24, // Matches the "chonky" card style
+        borderWidth: 1.5,
+        padding: 20,
+        height: 180,
         fontSize: 16,
         fontFamily: FONTS.medium,
     },
-    sectionLabel: {
-        fontSize: 11,
-        letterSpacing: 1.5,
-        marginBottom: 16,
-        marginLeft: 4,
+    buttonWrapper: {
+        marginTop: 30,
     },
-    faqCard: {
-        padding: 20,
-        borderRadius: 24,
-        borderWidth: 1,
-        marginBottom: 16,
-    },
-    faqQ: {
-        fontSize: 16,
-        marginBottom: 8,
-        lineHeight: 22,
-    },
-    faqA: {
-        fontSize: 14,
-        lineHeight: 20,
-        opacity: 0.8,
-    },
-    // Feedback specific styles (if you combine them)
-    label: {
-        fontSize: 11,
-        letterSpacing: 1,
-        marginBottom: 10,
-        marginTop: 20,
-        fontFamily: FONTS.bold,
-    },
-    typeRow: {
-        flexDirection: 'row',
-        gap: 10,
-        marginBottom: 10,
-    },
-    typeChip: {
-        paddingHorizontal: 16,
-        paddingVertical: 10,
-        borderRadius: 12,
-    },
-    textArea: {
-        borderRadius: 20,
-        borderWidth: 1,
-        padding: 16,
-        height: 150,
-        textAlignVertical: 'top', // Crucial for Android multiline
-        fontSize: 16,
+    hintText: {
+        textAlign: 'center',
+        fontSize: 12,
         fontFamily: FONTS.regular,
+        marginTop: 20,
+        opacity: 0.6,
     }
 });

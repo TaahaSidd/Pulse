@@ -17,8 +17,16 @@ import { FONTS, FONT_SIZES } from '../constants/Fonts';
 import { CategoryMapper } from '../utils/CategoryMapper';
 import BottomNavBar from '../components/BottomNavBar';
 import { useDatabase } from '../context/DatabaseContext';
+
 import Toast from '../components/Toast';
+import SearchBar from '../components/SearchBar';
+import TransactionItem from '../components/TransactionItem';
+import SegmentedFilter from '../components/SegmentedFilter';
+import TransactionFilterModal from '../components/TransactionFilterModal';
+
 import { useToast } from '../hooks/useToast';
+
+import NotfoundSVG from '../assets/Svg/Notfound.svg';
 
 export default function TransactionsScreen({ navigation, isDarkMode = true }) {
   const theme = getThemedColors(isDarkMode);
@@ -26,6 +34,7 @@ export default function TransactionsScreen({ navigation, isDarkMode = true }) {
   const { toast, showSuccess, showError, hideToast } = useToast();
 
   const [transactions, setTransactions] = useState([]);
+  const [isFilterModalVisible, setFilterModalVisible] = useState(false);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -127,52 +136,73 @@ export default function TransactionsScreen({ navigation, isDarkMode = true }) {
     }
   };
 
-  const renderTransactionItem = ({ item }) => {
-    const isExpense = item.type === 'debit';
-    const categoryColor = CategoryMapper.getCategoryColor(item.category);
-    const categoryIcon = CategoryMapper.getCategoryIcon(item.category);
+  const renderTransactionItem = ({ item, index, section }) => {
+    // const isExpense = item.type === 'debit';
+    // const categoryColor = CategoryMapper.getCategoryColor(item.category);
+    // const categoryIcon = CategoryMapper.getCategoryIcon(item.category);
+
+    // // Logic to determine if we should show a divider
+    // const isLastItem = index === section.data.length - 1;
+
+    // return (
+    //   <TouchableOpacity
+    //     style={styles.txRow}
+    //     activeOpacity={0.6}
+    //     onPress={() => navigation.navigate('TransactionDetail', { transaction: item })}
+    //     onLongPress={() => {
+    //       Alert.alert(
+    //         'Delete Transaction',
+    //         'Are you sure you want to remove this record?',
+    //         [
+    //           { text: 'Cancel', style: 'cancel' },
+    //           { text: 'Delete', style: 'destructive', onPress: () => handleDeleteTransaction(item.id) }
+    //         ]
+    //       );
+    //     }}
+    //   >
+    //     {/* Simple Icon only - Indicator removed */}
+    //     <View style={styles.iconWrapper}>
+    //       <Ionicons name={categoryIcon} size={24} color={categoryColor} />
+    //     </View>
+
+    //     {/* The divider now lives only in this container, starting from the text */}
+    //     <View style={[
+    //       styles.txMain,
+    //       !isLastItem && { borderBottomWidth: 0.5, borderBottomColor: theme.border }
+    //     ]}>
+    //       <View style={styles.details}>
+    //         <Text
+    //           numberOfLines={1}
+    //           style={[styles.txTitle, { color: theme.text, fontFamily: FONTS.semiBold }]}
+    //         >
+    //           {item.merchant || 'Unknown'}
+    //         </Text>
+    //         <Text style={[styles.txSubtitle, { color: theme.textTertiary, fontFamily: FONTS.medium }]}>
+    //           {item.category} • {item.bank}
+    //         </Text>
+    //       </View>
+
+    //       <View style={styles.amountContainer}>
+    //         <Text style={[
+    //           styles.amountText,
+    //           { color: isExpense ? theme.text : COLORS.primary, fontFamily: FONTS.bold }
+    //         ]}>
+    //           {isExpense ? `-₹${item.amount.toLocaleString()}` : `+₹${item.amount.toLocaleString()}`}
+    //         </Text>
+    //       </View>
+    //     </View>
+    //   </TouchableOpacity>
+    // );
 
     return (
-      <TouchableOpacity
-        style={[styles.transactionCard, { backgroundColor: theme.card, borderColor: theme.border }]}
-        activeOpacity={0.7}
+      <TransactionItem
+        item={item}
+        index={index}
+        isLast={index === section.data.length - 1}
+        theme={theme}
         onPress={() => navigation.navigate('TransactionDetail', { transaction: item })}
-        onLongPress={() => {
-          // Note: Standard 'confirm' doesn't exist in React Native.
-          // Use Alert.alert from 'react-native' instead.
-          Alert.alert(
-            'Delete Transaction',
-            'Are you sure you want to remove this record?',
-            [
-              { text: 'Cancel', style: 'cancel' },
-              { text: 'Delete', style: 'destructive', onPress: () => handleDeleteTransaction(item.id) }
-            ]
-          );
-        }}
-      >
-        <View style={[styles.iconBox, { backgroundColor: categoryColor + '20' }]}>
-          <Ionicons name={categoryIcon} size={22} color={categoryColor} />
-        </View>
-
-        <View style={styles.details}>
-          <Text style={[styles.txTitle, { color: theme.text, fontFamily: FONTS.semiBold }]}>
-            {item.merchant || 'Unknown'}
-          </Text>
-          <Text style={[styles.txSubtitle, { color: theme.textTertiary, fontFamily: FONTS.regular }]}>
-            {item.category} • {item.bank}
-          </Text>
-        </View>
-
-        <View style={styles.amountContainer}>
-          <Text style={[
-            styles.amountText,
-            { color: isExpense ? theme.text : COLORS.primary, fontFamily: FONTS.bold }
-          ]}>
-            {isExpense ? `-₹${item.amount.toFixed(2)}` : `+₹${item.amount.toFixed(2)}`}
-          </Text>
-          <Ionicons name="chevron-forward" size={16} color={theme.textTertiary} />
-        </View>
-      </TouchableOpacity>
+        onDelete={handleDeleteTransaction}
+      />
     );
   };
 
@@ -199,23 +229,31 @@ export default function TransactionsScreen({ navigation, isDarkMode = true }) {
       </View>
 
       {/* Search Bar */}
-      <View style={[styles.searchContainer, { backgroundColor: theme.card, borderColor: theme.border }]}>
-        <Ionicons name="search" size={20} color={theme.textTertiary} />
-        <TextInput
-          placeholder="Search merchant, category..."
-          placeholderTextColor={theme.textTertiary}
-          style={[styles.searchInput, { color: theme.text, fontFamily: FONTS.regular }]}
-          value={searchQuery}
-          onChangeText={setSearchQuery}
+      <SearchBar
+        value={searchQuery}
+        onChangeText={setSearchQuery}
+        placeholder="Search merchant, category..."
+        theme={theme}
+      />
+
+      {/* Filter Row */}
+      <View style={styles.filterRow}>
+        <SegmentedFilter
+          options={['All', 'Expenses', 'Income']}
+          activeFilter={activeFilter}
+          onSelect={setActiveFilter}
+          theme={theme}
         />
-        {searchQuery.length > 0 && (
-          <TouchableOpacity onPress={() => setSearchQuery('')}>
-            <Ionicons name="close-circle" size={20} color={theme.textTertiary} />
-          </TouchableOpacity>
-        )}
+
+        <TouchableOpacity
+          style={[styles.filterIconButton, { backgroundColor: theme.card, borderColor: theme.border }]}
+          onPress={() => setFilterModalVisible(true)}
+        >
+          <Ionicons name="options" size={22} color={theme.text} />
+        </TouchableOpacity>
       </View>
 
-      {/* Horizontal Filters */}
+      {/* Horizontal Filters
       <View>
         <ScrollView
           horizontal
@@ -243,7 +281,7 @@ export default function TransactionsScreen({ navigation, isDarkMode = true }) {
             </TouchableOpacity>
           ))}
         </ScrollView>
-      </View>
+      </View> */}
 
       {/* Transaction List */}
       {loading ? (
@@ -283,6 +321,17 @@ export default function TransactionsScreen({ navigation, isDarkMode = true }) {
           }
         />
       )}
+
+      <TransactionFilterModal
+        visible={isFilterModalVisible}
+        onClose={() => setFilterModalVisible(false)}
+        theme={theme}
+        onApply={() => {
+          console.log("Applying filters...");
+        }}
+        onReset={() => {
+        }}
+      />
 
       <BottomNavBar
         active="Transactions"
@@ -333,14 +382,13 @@ const styles = StyleSheet.create({
     backgroundColor: 'transparent',
   },
   filterText: { fontSize: FONT_SIZES.sm },
-  listContent: { paddingHorizontal: 20 },
-  sectionHeader: {
-    fontSize: FONT_SIZES.xs,
-    fontFamily: FONTS.bold,
-    textTransform: 'uppercase',
-    letterSpacing: 1,
-    paddingVertical: 12,
-  },
+  // sectionHeader: {
+  //   fontSize: FONT_SIZES.xs,
+  //   fontFamily: FONTS.bold,
+  //   textTransform: 'uppercase',
+  //   letterSpacing: 1,
+  //   paddingVertical: 12,
+  // },
   transactionCard: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -380,5 +428,74 @@ const styles = StyleSheet.create({
   loadingText: {
     marginTop: 16,
     fontSize: FONT_SIZES.base,
+  },
+
+
+  txRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingLeft: 20, // Aligns the icons to the screen edge
+  },
+  iconWrapper: {
+    width: 40,
+    height: 40,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12, // Gap between icon and the start of the text/divider
+  },
+  txMain: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 16,
+    paddingRight: 20, // Ensures amount doesn't hit the screen edge
+  },
+  details: {
+    flex: 1
+  },
+  txTitle: {
+    fontSize: 16,
+    marginBottom: 2
+  },
+  txSubtitle: {
+    fontSize: 12,
+    opacity: 0.6
+  },
+  amountContainer: {
+    marginLeft: 10,
+    alignItems: 'flex-end'
+  },
+  amountText: {
+    fontSize: 16
+  },
+
+  // Section Header adjustment for the new style
+  sectionHeader: {
+    fontSize: 12,
+    fontFamily: FONTS.bold,
+    textTransform: 'uppercase',
+    letterSpacing: 1.5,
+    paddingVertical: 15,
+    paddingHorizontal: 20,
+    backgroundColor: 'transparent', // No background color for sections
+  },
+  listContent: {
+    paddingHorizontal: 0 // Remove horizontal padding from the container itself
+  },
+
+
+  filterRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    marginBottom: 20,
+    gap: 12, // Space between segments and icon
+  },
+  filterIconButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
 });

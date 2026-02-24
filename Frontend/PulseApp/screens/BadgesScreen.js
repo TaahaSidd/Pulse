@@ -1,23 +1,87 @@
 import React, { useState } from 'react';
-import { StyleSheet, Text, View, FlatList, TouchableOpacity, Dimensions, Modal } from 'react-native';
+import { StyleSheet, Text, View, FlatList, TouchableOpacity, Dimensions, Modal, Image, } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { getThemedColors, COLORS } from '../constants/Colors';
 import { FONTS } from '../constants/Fonts';
+
+import ScreenHeader from '../components/ScreenHeader';
 import Button from '../components/Button';
+
 
 export default function BadgesScreen({ navigation, isDarkMode = true }) {
     const theme = getThemedColors(isDarkMode);
     const [selectedBadge, setSelectedBadge] = useState(null);
 
+    // Updated BADGE_DATA for a real-world financial app
     const BADGE_DATA = [
-        { id: '1', title: 'First Pulse', desc: 'Parsed your first SMS', icon: 'flash', unlocked: true, date: '12 Jan 2026' },
-        { id: '2', title: 'Saver Mode', desc: 'Stayed under budget for 7 days', icon: 'leaf', unlocked: true, date: '18 Jan 2026' },
-        { id: '3', title: 'Clean Slate', desc: 'Categorized 50 transactions', icon: 'checkmark-done', unlocked: true, date: '20 Jan 2026' },
-        { id: '4', title: 'Ghost', desc: 'Used Ghost Mode for 24 hours', icon: 'eye-off', unlocked: true, date: '22 Jan 2026' },
-        { id: '5', title: 'Centurion', desc: 'Logged 100 transactions', icon: 'shield-checkmark', unlocked: false },
-        { id: '6', title: 'Budget King', desc: '3 months of zero overspending', icon: 'trophy', unlocked: false },
-        { id: '7', title: 'Night Owl', desc: 'Parsed a txn after midnight', icon: 'moon', unlocked: false },
-        { id: '8', title: 'Master Sync', desc: 'Backup your data to Cloud', icon: 'cloud-done', unlocked: false },
+        {
+            id: '1',
+            title: 'Fresh Start',
+            desc: 'Recorded your first transaction of the month.',
+            image: require('../assets/Badges/FreshStart.png'),
+            unlocked: true,
+            date: '01 Feb 2026',
+            category: 'Discipline'
+        },
+        {
+            id: '2',
+            title: '7-Day Streak',
+            desc: 'Tracked your expenses for 7 consecutive days.',
+            image: require('../assets/Badges/FreshStart.png'),
+            unlocked: true,
+            date: '08 Feb 2026',
+            category: 'Consistency'
+        },
+        {
+            id: '3',
+            title: 'Under Budget',
+            desc: 'Spent 10% less than your monthly budget limit.',
+            image: require('../assets/Badges/FreshStart.png'),
+            unlocked: true,
+            date: '10 Feb 2026',
+            category: 'Savings'
+        },
+        {
+            id: '4',
+            title: 'Wealth Builder',
+            desc: 'Saved your first ₹10,000 using Pulse.',
+            image: require('../assets/Badges/FreshStart.png'),
+            unlocked: true,
+            date: '11 Feb 2026',
+            category: 'Milestone'
+        },
+        {
+            id: '5',
+            title: 'Debt Crusher',
+            desc: 'Cleared a recurring credit card bill or loan.',
+            image: require('../assets/Badges/FreshStart.png'),
+            unlocked: false,
+            category: 'Milestone'
+        },
+        {
+            id: '6',
+            title: 'Investment Pro',
+            desc: 'Linked an investment or demat account.',
+            image: require('../assets/Badges/FreshStart.png'),
+            unlocked: false,
+            category: 'Wealth'
+        },
+        {
+            id: '7',
+            title: 'Zero Waste',
+            desc: 'A full week with zero "Uncategorized" expenses.',
+            image: require('../assets/Badges/FreshStart.png'),
+            unlocked: false,
+            category: 'Organization'
+        },
+        {
+            id: '8',
+            title: 'Emergency Ready',
+            desc: 'Set aside 3 months of expenses in your vault.',
+            image: require('../assets/Badges/FreshStart.png'),
+            unlocked: false,
+            category: 'Security'
+        },
     ];
 
     const renderBadge = ({ item }) => (
@@ -30,16 +94,24 @@ export default function BadgesScreen({ navigation, isDarkMode = true }) {
             activeOpacity={0.7}
         >
             <View style={[styles.iconCircle, { backgroundColor: item.unlocked ? COLORS.primary + '15' : theme.bg }]}>
-                <Ionicons name={item.icon} size={32} color={item.unlocked ? COLORS.primary : theme.textTertiary} />
+                {/* ✅ REPLACE IONICON WITH IMAGE */}
+                <Image
+                    source={item.image}
+                    style={styles.badgeImage}
+                    resizeMode="contain"
+                />
+
                 {!item.unlocked && (
                     <View style={styles.lockOverlay}>
                         <Ionicons name="lock-closed" size={14} color={theme.textTertiary} />
                     </View>
                 )}
             </View>
+
             <Text style={[styles.badgeTitle, { color: item.unlocked ? theme.text : theme.textTertiary, fontFamily: FONTS.bold }]}>
                 {item.title}
             </Text>
+
             {!item.unlocked && (
                 <View style={[styles.lockedBadge, { backgroundColor: theme.bg }]}>
                     <Text style={[styles.lockedText, { color: theme.textTertiary }]}>Locked</Text>
@@ -48,12 +120,21 @@ export default function BadgesScreen({ navigation, isDarkMode = true }) {
         </TouchableOpacity>
     );
 
+
     return (
         <View style={[styles.container, { backgroundColor: theme.bg }]}>
-            <View style={styles.header}>
+            {/* <View style={styles.header}>
                 <TouchableOpacity onPress={() => navigation.goBack()}><Ionicons name="chevron-back" size={28} color={theme.text} /></TouchableOpacity>
                 <Text style={[styles.headerTitle, { color: theme.text, fontFamily: FONTS.bold }]}>Achievements</Text>
-            </View>
+            </View> */}
+
+            <ScreenHeader
+                mode="simple"
+                theme={theme}
+                title="Badges"
+                showBack={true}
+                onBackPress={() => navigation.goBack()}
+            />
 
             <FlatList
                 data={BADGE_DATA}
@@ -88,10 +169,10 @@ export default function BadgesScreen({ navigation, isDarkMode = true }) {
                         </TouchableOpacity>
 
                         <View style={[styles.detailIconCircle, { backgroundColor: selectedBadge?.unlocked ? COLORS.primary + '15' : theme.bg }]}>
-                            <Ionicons
-                                name={selectedBadge?.icon}
-                                size={60}
-                                color={selectedBadge?.unlocked ? COLORS.primary : theme.textTertiary}
+                            <Image
+                                source={selectedBadge?.image}
+                                style={styles.detailBadgeImage}
+                                resizeMode="contain"
                             />
                         </View>
 
@@ -162,5 +243,16 @@ const styles = StyleSheet.create({
     dateLabel: { fontSize: 12, textTransform: 'uppercase', letterSpacing: 1 },
     dateValue: { fontSize: 16, marginTop: 4 },
     lockedInfo: { alignItems: 'center', marginTop: 10 },
-    lockedDesc: { fontSize: 13, textAlign: 'center', marginTop: 10, paddingHorizontal: 20 }
+    lockedDesc: { fontSize: 13, textAlign: 'center', marginTop: 10, paddingHorizontal: 20 },
+
+
+    //Image
+    badgeImage: {
+        width: 60,
+        height: 60,
+    },
+    detailBadgeImage: {
+        width: 120,
+        height: 120,
+    },
 });

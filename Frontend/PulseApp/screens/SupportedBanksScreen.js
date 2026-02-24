@@ -3,21 +3,13 @@ import { StyleSheet, Text, View, ScrollView, SafeAreaView, TouchableOpacity, Ima
 import { Ionicons } from '@expo/vector-icons';
 import { getThemedColors, COLORS } from '../constants/Colors';
 import { FONTS, FONT_SIZES } from '../constants/Fonts';
+
 import BankPatterns from '../utils/BankPatterns';
+import { BANK_LOGOS, getBankLogo } from '../constants/BankLogos';
+
+import ScreenHeader from '../components/ScreenHeader';
 import InfoBox from '../components/InfoBox';
 
-// 1. MAP YOUR IMAGES HERE
-// React Native requires static require() calls.
-// If an image doesn't exist for a key, it falls back to the icon.
-const BANK_LOGOS = {
-  SBI: require('../assets/banks/Sbi.png'),
-  HDFC: require('../assets/banks/hdfc.png'),
-  AXIS: require('../assets/banks/Axis.png'),
-  FEDERAL: require('../assets/banks/Federal.png'),
-  GOOGLEPAY: require('../assets/banks/GPay.png'),
-  PHONEPE: require('../assets/banks/PhonePe.png'),
-  PAYTM: require('../assets/banks/Paytm.png'),
-};
 
 export default function SupportedBanksScreen({ navigation, isDarkMode = true }) {
   const theme = getThemedColors(isDarkMode);
@@ -56,15 +48,15 @@ export default function SupportedBanksScreen({ navigation, isDarkMode = true }) 
   return (
     <View style={[styles.container, { backgroundColor: theme.bg }]}>
       <SafeAreaView style={{ flex: 1 }}>
-        {/* CENTERED HEADER FIX */}
-        <View style={styles.header}>
-          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
-            <Ionicons name="chevron-back" size={24} color={theme.text} />
-          </TouchableOpacity>
-          <Text style={[styles.title, { color: theme.text, fontFamily: FONTS.bold }]}>
-            Supported Banks
-          </Text>
-        </View>
+
+        {/*HEADER*/}
+        <ScreenHeader
+          mode="simple"
+          theme={theme}
+          title="Supported Banks"
+          showBack={true}
+          onBackPress={() => navigation.goBack()}
+        />
 
         <ScrollView contentContainerStyle={styles.scrollBody} showsVerticalScrollIndicator={false}>
           <Text style={[styles.description, { color: theme.textTertiary, fontFamily: FONTS.regular }]}>
@@ -91,7 +83,6 @@ export default function SupportedBanksScreen({ navigation, isDarkMode = true }) 
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  // Header styles updated for centering
   header: {
     flexDirection: 'row',
     alignItems: 'center',

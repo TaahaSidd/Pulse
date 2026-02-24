@@ -1,114 +1,177 @@
-import React from 'react';
-import { StyleSheet, Text, View, ScrollView, TouchableOpacity, Linking } from 'react-native';
+import React, { useState } from 'react';
+import { StyleSheet, Text, View, ScrollView, Linking } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { getThemedColors, COLORS } from '../constants/Colors';
 import { FONTS } from '../constants/Fonts';
+
+import BudgetDB from '../database/BudgetDB';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
+import Button from '../components/Button';
+import PulseModal from '../components/PulseModal';
+import ScreenHeader from '../components/ScreenHeader';
 import InfoBox from '../components/InfoBox';
+import GeneralActionItem from '../components/GeneralActionItem';
 
 export default function SecurityPrivacyScreen({ navigation, isDarkMode = true }) {
   const theme = getThemedColors(isDarkMode);
+  const [modalVisible, setModalVisible] = useState(false);
 
-  const TrustCard = ({ icon, title, description }) => (
+  const handleWipeData = async () => {
+    try {
+      await BudgetDB.deleteAllData();
+      await AsyncStorage.clear();
+      setModalVisible(false);
+      navigation.reset({
+        index: 0,
+        routes: [{ name: 'Onboarding' }],
+      });
+    } catch (error) {
+      console.error("Wipe failed", error);
+    }
+  };
+
+  const TrustCard = ({ title, description }) => (
     <View style={[styles.trustCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
-      <View style={[styles.iconCircle, { backgroundColor: COLORS.primary + '15' }]}>
-        <Ionicons name={icon} size={24} color={COLORS.primary} />
-      </View>
-      <View style={styles.trustContent}>
-        <Text style={[styles.trustTitle, { color: theme.text, fontFamily: FONTS.bold }]}>{title}</Text>
-        <Text style={[styles.trustDesc, { color: theme.textSecondary, fontFamily: FONTS.regular }]}>{description}</Text>
-      </View>
+      <Text style={[styles.trustTitle, { color: theme.text, fontFamily: FONTS.bold }]}>{title}</Text>
+      <Text style={[styles.trustDesc, { color: theme.textSecondary, fontFamily: FONTS.regular }]}>{description}</Text>
     </View>
   );
 
   return (
     <View style={[styles.container, { backgroundColor: theme.bg }]}>
-      {/* Header */}
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
-          <Ionicons name="chevron-back" size={28} color={theme.text} />
-        </TouchableOpacity>
-        <Text style={[styles.headerTitle, { color: theme.text, fontFamily: FONTS.bold }]}>Security & Privacy</Text>
-      </View>
+      <ScreenHeader
+        mode="simple"
+        theme={theme}
+        title="Security & Privacy"
+        showBack={true}
+        onBackPress={() => navigation.goBack()}
+      />
 
-      <ScrollView contentContainerStyle={styles.content}>
+      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <InfoBox
           type="success"
           icon="shield-checkmark"
-          text="Your financial data is encrypted and stored only on your device. We cannot see your balances or transactions."
+          text="Your financial data is stored locally and never leaves this device."
           isDarkMode={isDarkMode}
         />
 
-        <Text style={[styles.sectionLabel, { color: theme.textSecondary, fontFamily: FONTS.bold }]}>HOW WE PROTECT YOU</Text>
+        <Text style={[styles.sectionLabel, { color: theme.textSecondary, fontFamily: FONTS.bold }]}>DATA PROTECTION</Text>
 
         <TrustCard
-          icon="lock-closed-outline"
-          title="On-Device Processing"
-          description="Pulse parses your SMS messages locally using our sandbox engine. No raw message text ever reaches our servers."
+          title="On-Device Parsing"
+          description="Pulse processes SMS locally using a secure sandbox. Raw message content is never uploaded to any cloud."
         />
 
         <TrustCard
-          icon="key-outline"
-          title="Bank-Grade Encryption"
-          description="Local databases are protected with AES-256 encryption, the same standard used by global financial institutions."
-        />
-
-        <TrustCard
-          icon="server-outline"
-          title="Zero-Knowledge Sync"
-          description="If you enable cloud sync, your data is encrypted with your own master key before being uploaded."
+          title="Bank-Grade Storage"
+          description="Your local database is encrypted using industry-standard AES-256 encryption protocols."
         />
 
         <Text style={[styles.sectionLabel, { color: theme.textSecondary, fontFamily: FONTS.bold }]}>LEGAL & TRANSPARENCY</Text>
 
         <View style={[styles.card, { backgroundColor: theme.card, borderColor: theme.border }]}>
-          <TouchableOpacity style={styles.menuItem} onPress={() => Linking.openURL('https://yourwebsite.com/privacy')}>
-            <Text style={[styles.menuText, { color: theme.text, fontFamily: FONTS.medium }]}>Privacy Policy</Text>
-            <Ionicons name="open-outline" size={18} color={theme.textTertiary} />
-          </TouchableOpacity>
-          <View style={[styles.line, { backgroundColor: theme.border }]} />
-          <TouchableOpacity style={styles.menuItem} onPress={() => Linking.openURL('https://yourwebsite.com/terms')}>
-            <Text style={[styles.menuText, { color: theme.text, fontFamily: FONTS.medium }]}>Terms of Service</Text>
-            <Ionicons name="open-outline" size={18} color={theme.textTertiary} />
-          </TouchableOpacity>
+          <GeneralActionItem
+            label="Privacy Policy"
+            theme={theme}
+            rightComponent={<Ionicons name="open-outline" size={16} color={theme.textTertiary} />}
+            onPress={() => Linking.openURL('https://yourwebsite.com/privacy')}
+          />
+          <GeneralActionItem
+            label="Terms of Service"
+            theme={theme}
+            isLast={true}
+            rightComponent={<Ionicons name="open-outline" size={16} color={theme.textTertiary} />}
+            onPress={() => Linking.openURL('https://yourwebsite.com/terms')}
+          />
         </View>
 
-  
+        <Text style={[styles.sectionLabel, { color: '#FF5252', fontFamily: FONTS.bold }]}>DATA MANAGEMENT</Text>
+
+        <View style={[styles.dangerCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
+          <Text style={[styles.dangerTitle, { color: theme.text, fontFamily: FONTS.semiBold }]}>Reset All Data</Text>
+          <Text style={[styles.dangerDesc, { color: theme.textSecondary, fontFamily: FONTS.regular }]}>
+            This wipes all transactions, budgets, and settings. This cannot be undone.
+          </Text>
+
+          <Button
+            title="Hold to Wipe Data"
+            variant="danger"
+            icon="trash-outline"
+            holdToTrigger={true}
+            holdDuration={3000}
+            onPress={() => setModalVisible(true)}
+            fullWidth={true}
+          />
+        </View>
+
+        {/* 🆕 SYSTEM INFO (Added value for offline users) */}
+        <View style={styles.systemInfo}>
+          <Text style={[styles.systemText, { color: theme.textTertiary, fontFamily: FONTS.medium }]}>
+            Storage: Local SQLite Database
+          </Text>
+          <Text style={[styles.systemText, { color: theme.textTertiary, fontFamily: FONTS.medium }]}>
+            Pulse Version 1.0.0 (Stable)
+          </Text>
+        </View>
+
+        <View style={{ height: 40 }} />
       </ScrollView>
+
+      <PulseModal
+        visible={modalVisible}
+        type="delete"
+        title="Final Warning"
+        message="This will wipe your entire local history. This action cannot be undone."
+        onClose={() => setModalVisible(false)}
+        onPrimaryPress={handleWipeData}
+        isDarkMode={isDarkMode}
+      />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  header: { flexDirection: 'row', alignItems: 'center', paddingTop: 60, paddingHorizontal: 20, marginBottom: 20 },
-  headerTitle: { fontSize: 20, marginLeft: 10 },
-  content: { paddingHorizontal: 20, paddingBottom: 60 },
-  sectionLabel: { fontSize: 11, marginBottom: 12, marginTop: 25, letterSpacing: 1.5 },
+  content: { paddingHorizontal: 20, paddingBottom: 40 },
+  sectionLabel: { fontSize: 10, marginBottom: 8, marginTop: 22, letterSpacing: 1.2, marginLeft: 4 },
 
-  // Trust Card Styles
-  trustCard: { flexDirection: 'row', padding: 20, borderRadius: 24, borderWidth: 1, marginBottom: 12 },
-  iconCircle: { width: 50, height: 50, borderRadius: 25, justifyContent: 'center', alignItems: 'center', marginRight: 16 },
-  trustContent: { flex: 1 },
-  trustTitle: { fontSize: 16, marginBottom: 4 },
-  trustDesc: { fontSize: 13, lineHeight: 18 },
-
-  // Menu styles
-  card: { borderRadius: 20, borderWidth: 1, overflow: 'hidden' },
-  menuItem: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 18 },
-  menuText: { fontSize: 15 },
-  line: { height: 1, width: '100%' },
-
-  // Danger Zone
-  dangerCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
+  // Compact Trust Card
+  trustCard: {
     padding: 16,
-    borderRadius: 20,
+    borderRadius: 16,
     borderWidth: 1,
-    gap: 10,
-    backgroundColor: '#FF3B30' + '10'
+    marginBottom: 10
   },
-  dangerText: { color: '#FF3B30', fontSize: 14 },
-  dangerSub: { color: '#888', fontSize: 11, textAlign: 'center', marginTop: 10, paddingHorizontal: 20 }
+  trustTitle: { fontSize: 15, marginBottom: 4 },
+  trustDesc: { fontSize: 12, lineHeight: 18, opacity: 0.8 },
+
+  // Compact Legal Group
+  card: { borderRadius: 16, borderWidth: 1, overflow: 'hidden' },
+
+  // Compact Danger Card
+  dangerCard: {
+    padding: 16,
+    borderRadius: 16,
+    borderWidth: 1,
+  },
+  dangerTitle: { fontSize: 15, marginBottom: 2 },
+  dangerDesc: {
+    fontSize: 12,
+    lineHeight: 18,
+    marginBottom: 16,
+    opacity: 0.7,
+  },
+
+  // System Info Section
+  systemInfo: {
+    marginTop: 30,
+    alignItems: 'center',
+    gap: 4
+  },
+  systemText: {
+    fontSize: 10,
+    letterSpacing: 0.5,
+    textTransform: 'uppercase'
+  }
 });
