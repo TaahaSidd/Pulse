@@ -1,8 +1,10 @@
 /**
  * Auto-categorize transactions based on merchant names and keywords
+ * Used by SMS parser to auto-categorize transactions
  */
 
 export class CategoryMapper {
+  // All categories for SMS parsing
   static categories = {
     'Food & Dining': {
       keywords: [
@@ -11,6 +13,8 @@ export class CategoryMapper {
         'food', 'biryani', 'dunkin', 'baskin', 'ice cream', 'bakery',
         'haldiram', 'barbeque', 'burger', 'chinese', 'dhaba',
       ],
+      icon: 'restaurant-outline',
+      color: '#FFB800',
     },
 
     'Shopping': {
@@ -18,8 +22,10 @@ export class CategoryMapper {
         'amazon', 'flipkart', 'myntra', 'ajio', 'meesho', 'nykaa',
         'shoppers stop', 'lifestyle', 'reliance', 'dmart', 'big bazaar',
         'mall', 'store', 'fashion', 'clothing', 'shoes', 'electronics',
-        'snapdeal', 'paytm mall', 'jiomart',
+        'snapdeal', 'paytm mall',
       ],
+      icon: 'cart-outline',
+      color: '#F472B6',
     },
 
     'Travel & Transport': {
@@ -29,6 +35,8 @@ export class CategoryMapper {
         'ticket', 'airline', 'indigo', 'spicejet', 'petrol', 'fuel',
         'parking', 'toll', 'fastag',
       ],
+      icon: 'car-outline',
+      color: '#3B82F6',
     },
 
     'Bills & Utilities': {
@@ -38,6 +46,8 @@ export class CategoryMapper {
         'bsnl', 'tata', 'bill payment', 'recharge', 'postpaid',
         'prepaid', 'dth', 'cable',
       ],
+      icon: 'receipt-outline',
+      color: '#10B981',
     },
 
     'Entertainment': {
@@ -46,6 +56,8 @@ export class CategoryMapper {
         'movie', 'cinema', 'pvr', 'inox', 'bookmyshow', 'game',
         'playstation', 'xbox', 'steam', 'subscription',
       ],
+      icon: 'film-outline',
+      color: '#A855F7',
     },
 
     'Healthcare': {
@@ -54,6 +66,8 @@ export class CategoryMapper {
         'fortis', 'max', 'medanta', '1mg', 'pharmeasy', 'netmeds',
         'medicine', 'health', 'dental', 'diagnostic', 'lab test',
       ],
+      icon: 'medical-outline',
+      color: '#EF4444',
     },
 
     'Groceries': {
@@ -61,6 +75,8 @@ export class CategoryMapper {
         'grofer', 'blinkit', 'dunzo', 'bigbasket', 'jiomart',
         'grocery', 'supermarket', 'vegetables', 'fruits', 'milk',
       ],
+      icon: 'basket-outline',
+      color: '#A8E6CF',
     },
 
     'Education': {
@@ -69,6 +85,8 @@ export class CategoryMapper {
         'udemy', 'coursera', 'upgrad', 'byjus', 'unacademy',
         'education', 'fees', 'books', 'stationery',
       ],
+      icon: 'school-outline',
+      color: '#FFD3B6',
     },
 
     'Fitness': {
@@ -76,44 +94,75 @@ export class CategoryMapper {
         'gym', 'fitness', 'yoga', 'cult', 'healthify', 'sports',
         'swimming', 'membership',
       ],
+      icon: 'fitness-outline',
+      color: '#FFAAA5',
     },
 
-    'Income': {
+    'Savings': {
       keywords: [
-        'salary', 'received', 'credited', 'transfer from', 'refund',
-        'cashback', 'reward', 'income', 'payment received',
+        'sip', 'mutual fund', 'investment', 'stock', 'zerodha',
+        'groww', 'upstox', 'fd', 'recurring deposit',
+        'autopay', 'mandate', 'iccl', 'mf', 'equity',
+        'mutual funds', 'systematic', 'elss', 'nfo',
       ],
+      icon: 'wallet-outline',
+      color: '#8CF364',
     },
   };
 
+  // Core categories - shown by default in budget
+  static coreCategories = [
+    'Food & Dining',
+    'Shopping',
+    'Travel & Transport',
+    'Bills & Utilities',
+    'Entertainment',
+    'Healthcare',
+  ];
+
+  // Optional categories - user can add to budget
+  static optionalCategories = [
+    'Groceries',
+    'Education',
+    'Fitness',
+    'Savings',
+  ];
+
   /**
    * Categorize transaction based on merchant name and SMS text
+   * Used by SMS parser
    */
   static categorize(merchant, smsText = '', type = 'debit') {
+    const lower = smsText.toLowerCase();
+    const merchantLower = (merchant || '').toLowerCase();
+
     // Handle income/credit transactions
     if (type === 'credit') {
-      // Check if it's a refund
-      if (smsText.toLowerCase().includes('refund')) {
+      if (lower.includes('refund')) {
         return 'Refund';
       }
-      // Check if it's salary
-      if (smsText.toLowerCase().includes('salary')) {
-        return 'Income';
+
+      if (lower.includes('salary')) {
+        return 'Salary';
       }
-      // Check if it's a transfer from someone
-      if (smsText.toLowerCase().includes('transfer from')) {
-        return 'Income';
+
+      if (lower.includes('upi') || lower.includes('imps') || lower.includes('neft')) {
+        if (merchantLower.includes('@') ||
+          /^\d+$/.test(merchantLower) ||
+          lower.includes('linked to mobile')) {
+          return 'Transfer';
+        }
       }
-      // Default credit category
+
+      if (lower.includes('transfer from')) {
+        return 'Transfer';
+      }
+
       return 'Income';
     }
 
-    // For debit transactions, check merchant name
-    const merchantLower = merchant.toLowerCase();
-    const smsLower = smsText.toLowerCase();
-    const combinedText = `${merchantLower} ${smsLower}`;
+    const combinedText = `${merchantLower} ${lower}`;
 
-    // Check each category's keywords
     for (const [category, { keywords }] of Object.entries(this.categories)) {
       for (const keyword of keywords) {
         if (combinedText.includes(keyword)) {
@@ -122,61 +171,71 @@ export class CategoryMapper {
       }
     }
 
-    // Default category
     return 'Others';
   }
 
   /**
-   * Get all available categories
+   * Get all available categories (for SMS parsing)
    */
   static getAllCategories() {
     return [
       ...Object.keys(this.categories),
+      'Income',
+      'Salary',
+      'Transfer',
       'Refund',
       'Others',
     ];
   }
 
   /**
+   * Get core categories (shown by default in budget)
+   */
+  static getCoreCategories() {
+    return this.coreCategories;
+  }
+
+  /**
+   * Get optional categories (user can add to budget)
+   */
+  static getOptionalCategories() {
+    return this.optionalCategories;
+  }
+
+  /**
+   * Get category details (icon, color, keywords)
+   */
+  static getCategoryDetails(categoryName) {
+    // Handle special income categories
+    const specialCategories = {
+      'Income': { icon: 'cash-outline', color: '#8CF364', keywords: [] },
+      'Salary': { icon: 'briefcase-outline', color: '#8CF364', keywords: [] },
+      'Transfer': { icon: 'swap-horizontal-outline', color: '#3B82F6', keywords: [] },
+      'Refund': { icon: 'return-up-back-outline', color: '#8CF364', keywords: [] },
+      'Others': { icon: 'ellipsis-horizontal', color: '#D1D5DB', keywords: [] },
+    };
+
+    return this.categories[categoryName] || specialCategories[categoryName] || {
+      icon: 'ellipsis-horizontal',
+      color: '#D1D5DB',
+      keywords: [],
+    };
+  }
+
+  /**
    * Get category icon suggestion
    */
   static getCategoryIcon(category) {
-    const icons = {
-      'Food & Dining': 'restaurant',
-      'Shopping': 'cart',
-      'Travel & Transport': 'car',
-      'Bills & Utilities': 'receipt',
-      'Entertainment': 'film',
-      'Healthcare': 'medical',
-      'Groceries': 'basket',
-      'Education': 'school',
-      'Fitness': 'fitness',
-      'Income': 'cash',
-      'Refund': 'return-up-back',
-      'Others': 'ellipsis-horizontal',
-    };
-    return icons[category] || 'ellipsis-horizontal';
+    const details = this.getCategoryDetails(category);
+    return details.icon || 'ellipsis-horizontal';
   }
 
   /**
    * Get category color suggestion
    */
   static getCategoryColor(category) {
-    const colors = {
-      'Food & Dining': '#FF6B6B',
-      'Shopping': '#4ECDC4',
-      'Travel & Transport': '#95E1D3',
-      'Bills & Utilities': '#F38181',
-      'Entertainment': '#AA96DA',
-      'Healthcare': '#FCBAD3',
-      'Groceries': '#A8E6CF',
-      'Education': '#FFD3B6',
-      'Fitness': '#FFAAA5',
-      'Income': '#8CF364',
-      'Refund': '#8CF364',
-      'Others': '#D1D5DB',
-    };
-    return colors[category] || '#D1D5DB';
+    const details = this.getCategoryDetails(category);
+    return details.color || '#D1D5DB';
   }
 }
 
