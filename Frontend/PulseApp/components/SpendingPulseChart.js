@@ -4,7 +4,7 @@ import { View, Text, StyleSheet, ScrollView, Dimensions } from 'react-native';
 import { startOfMonth, endOfMonth, eachDayOfInterval, eachWeekOfInterval, endOfWeek } from 'date-fns';
 import { COLORS } from '../constants/Colors';
 import { FONTS, FONT_SIZES } from '../constants/Fonts';
-import SegmentedFilter from './SegmentedFilter'; // <-- Added this
+import SegmentedFilter from './SegmentedFilter';
 
 const SCREEN_WIDTH = Dimensions.get('window').width;
 const BAR_MAX_H = 120;
@@ -14,7 +14,6 @@ const prepareChartData = (dailyMap, selectedDate, viewMode) => {
     const monthStart = startOfMonth(selectedDate);
     const monthEnd = endOfMonth(selectedDate);
 
-    // Matching the likely 'Daily' string from your SegmentedFilter
     if (viewMode.toLowerCase() === 'daily') {
         return eachDayOfInterval({ start: monthStart, end: monthEnd }).map(day => ({
             label: day.getDate().toString(),
@@ -41,7 +40,6 @@ const prepareChartData = (dailyMap, selectedDate, viewMode) => {
 };
 
 export default function SpendingPulseChart({ dailyMap, selectedDate, theme }) {
-    // Initializing with 'Weekly' to match SegmentedFilter style
     const [viewMode, setViewMode] = useState('Weekly');
 
     const data = useMemo(

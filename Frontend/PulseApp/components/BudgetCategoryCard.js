@@ -16,7 +16,6 @@ const BudgetCategoryCard = ({
     const spentPct = item.amount > 0 ? (spent / item.amount) * 100 : 0;
     const totalPct = numericTotal > 0 ? Math.round((item.amount / numericTotal) * 100) : 0;
 
-    // Render the "Delete" action that appears behind the card
     const renderRightActions = (progress, dragX) => {
         const trans = dragX.interpolate({
             inputRange: [-80, 0],
