@@ -1,14 +1,14 @@
 {
   "expo": {
-    "name": "PulseApp",
-    "slug": "PulseApp",
+    "name": "Pace",
+    "slug": "PaceApp",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/app-logo.png",
+    "icon": "./assets/PulseLogo.png",
     "userInterfaceStyle": "light",
     "newArchEnabled": true,
     "splash": {
-      "image": "./assets/app-logo.png",
+      "image": "./assets/PulseLogo.png",
       "resizeMode": "contain",
       "backgroundColor": "#ffffff"
     },
@@ -16,11 +16,22 @@
       "supportsTablet": true
     },
     "android": {
+      "softwareKeyboardLayoutMode": "resize",
+      "edgeToEdgeEnabled": true,
+      "permissions": [
+        "READ_SMS",
+        "RECEIVE_SMS",
+        "READ_PHONE_STATE",
+        "USE_BIOMETRIC",
+        "USE_FINGERPRINT",
+        "android.permission.USE_BIOMETRIC",
+        "android.permission.USE_FINGERPRINT"
+      ],
       "adaptiveIcon": {
-        "foregroundImage": "./assets/app-logo.png",
+        "foregroundImage": "./assets/PulseLogo.png",
         "backgroundColor": "#ffffff"
       },
-      "edgeToEdgeEnabled": true
+      "package": "com.spicalabs.pace"
     },
     "web": {
       "favicon": "./assets/favicon.png"
@@ -28,7 +39,17 @@
     "plugins": [
       "expo-router",
       "expo-font",
-      "expo-sqlite"
-    ]
+      "expo-sqlite",
+      "@react-native-community/datetimepicker",
+      "expo-secure-store",
+      "expo-local-authentication",
+      "expo-notifications"
+    ],
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "3ca2d7d6-1b59-4b38-918b-75c6dc636b5e"
+      }
+    }
   }
 }
