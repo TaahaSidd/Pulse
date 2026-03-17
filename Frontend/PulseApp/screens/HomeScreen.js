@@ -3,25 +3,25 @@ import {
   StyleSheet,
   Text,
   View,
-  TextInput,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
   Modal,
-  Image,
   TouchableOpacity,
   SafeAreaView,
   Dimensions,
 } from 'react-native';
+import { PermissionsAndroid } from 'react-native';
 import LottieView from 'lottie-react-native';
 import { Ionicons } from '@expo/vector-icons';
+import * as Notifications from 'expo-notifications';
+import { useIsFocused } from '@react-navigation/native';
 
 import { SmsParserService } from '../services/SmsParserService';
 import { useDatabase } from '../context/DatabaseContext';
-import { supabase } from '../lib/supabase';
-
+import * as SecureStore from 'expo-secure-store';
 import { getThemedColors, COLORS } from '../constants/Colors';
-import { FONTS, FONT_SIZES } from '../constants/Fonts';
+import { FONTS } from '../constants/Fonts';
 
 import { useToast } from '../hooks/useToast';
 
@@ -33,88 +33,103 @@ import TransactionItem from '../components/TransactionItem';
 import EditTransactionModal from '../components/Edittransactionmodal';
 import AddButton from '../components/AddButton';
 import AddTransactionBottomSheet from '../components/AddTransactionBottomSheet';
+import SmsInputBottomSheet from '../components/SmsInputBottomsheet';
+import NotificationService from '../services/NotificationService';
+import SmsPermissionBanner from '../components/SmsPermissionBanner';
 
 const { width } = Dimensions.get('window');
-
 export default function HomeScreen({ navigation, isDarkMode = true }) {
+  const [userName, setUserName] = useState('');
+  const [hasUnreadNotifs, setHasUnreadNotifs] = useState(false);
   const [transactions, setTransactions] = useState([]);
   const [recentTotal, setRecentTotal] = useState(0);
   const [incomeTotal, setIncomeTotal] = useState(0);
   const [expenseTotal, setExpenseTotal] = useState(0);
-  const [accounts, setAccounts] = useState([]);
-  const [smsText, setSmsText] = useState('');
+  const [showAddOptions, setShowAddOptions] = useState(false);
+  const [showSmsSheet, setShowSmsSheet] = useState(false);
   const [isSending, setIsSending] = useState(false);
   const [showAnimation, setShowAnimation] = useState(false);
-  const [parseResult, setParseResult] = useState(null);
-  const [showAddOptions, setShowAddOptions] = useState(false);
-  const [showManualAddModal, setShowManualAddModal] = useState(false);
+  const [showSmsBanner, setShowSmsBanner] = useState(false);
 
-  const smsInputRef = useRef(null);
   const lottieRef = useRef(null);
   const theme = getThemedColors(isDarkMode);
   const { toast, showSuccess, showError, hideToast } = useToast();
   const { isInitialized, db } = useDatabase();
+  const isFocused = useIsFocused();
 
-  const testConnection = async () => {
-    const { data, error } = await supabase.auth.getSession();
-    console.log('✅ Supabase ready:', data.session ? 'Logged in' : 'Ready')
-  }
+  const handleNavigate = (screen) => navigation.navigate(screen);
 
-  testConnection();
+  useEffect(() => {
+    if (Platform.OS !== 'android' || !isFocused) return;
+    const check = async () => {
+      const granted = await PermissionsAndroid.check(PermissionsAndroid.PERMISSIONS.READ_SMS);
+      if (!granted) setShowSmsBanner(true);
+    };
+    check();
+  }, [isFocused]);
 
-  const handleNavigate = (screen) => {
-    navigation.navigate(screen);
-  };
+  useEffect(() => {
+    const askNotifPermission = async () => {
+      const { status } = await Notifications.getPermissionsAsync();
+      if (status !== 'granted') await Notifications.requestPermissionsAsync();
+    };
+    askNotifPermission();
+  }, []);
 
-  // --- Database Logic ---
+  useEffect(() => {
+    const loadName = async () => {
+      const savedName = await SecureStore.getItemAsync('pulse_user_name');
+      if (savedName) setUserName(savedName.split(' ')[0]);
+    };
+    loadName();
+  }, []);
+  
+  useEffect(() => {
+    if (!isFocused) return;
+    const checkNotifs = async () => {
+      const history = await NotificationService.getHistory();
+      setHasUnreadNotifs(history.some(n => !n.isRead));
+    };
+    checkNotifs();
+  }, [isFocused]);
+
   const fetchRecentTransactions = useCallback(async () => {
-    if (isInitialized && db) {
-      try {
-        const allData = await db.getAllTransactions(100);
-        const detectedAccounts = await db.getDetectedAccounts();
-        setAccounts(detectedAccounts);
+    if (!isInitialized || !db) return;
+    try {
+      const allData = await db.getAllTransactions(100);
+      const today = new Date().toISOString().split('T')[0];
+      let todaySpent = 0, totalIn = 0, totalOut = 0;
 
-        const today = new Date().toISOString().split('T')[0];
-        let todaySpent = 0;
-        let totalIn = 0;
-        let totalOut = 0;
+      allData.forEach(t => {
+        if (t.type === 'debit') {
+          totalOut += t.amount;
+          if (t.date === today) todaySpent += t.amount;
+        } else {
+          totalIn += t.amount;
+        }
+      });
 
-        allData.forEach(t => {
-          if (t.type === 'debit') {
-            totalOut += t.amount;
-            if (t.date === today) todaySpent += t.amount;
-          } else {
-            totalIn += t.amount;
-          }
-        });
-
-        setTransactions(allData.slice(0, 5));
-        setRecentTotal(todaySpent);
-        setIncomeTotal(totalIn);
-        setExpenseTotal(totalOut);
-
-      } catch (error) {
-        console.error("Fetch error:", error);
-      }
+      setTransactions(allData.slice(0, 5));
+      setRecentTotal(todaySpent);
+      setIncomeTotal(totalIn);
+      setExpenseTotal(totalOut);
+    } catch (error) {
+      console.error('Fetch error:', error);
     }
   }, [isInitialized, db]);
 
+  // Refresh on focus — catches saves from EditTransactionScreen
   useEffect(() => {
-    fetchRecentTransactions();
-  }, [fetchRecentTransactions]);
+    if (isFocused) fetchRecentTransactions();
+  }, [isFocused, fetchRecentTransactions]);
 
-  const handleSendToBackend = async () => {
-    if (!smsText.trim()) {
-      showError('Empty Message', 'Please enter SMS text to parse');
-      return;
-    }
-
+  const handleSmsSend = async (smsText) => {
     setIsSending(true);
     setShowAnimation(true);
     setTimeout(() => lottieRef.current?.play(), 100);
 
     const result = SmsParserService.parse(smsText);
-    await new Promise(resolve => setTimeout(resolve, 2000));
+    await new Promise(resolve => setTimeout(resolve, 1500));
 
     setIsSending(false);
     setShowAnimation(false);
@@ -123,10 +138,9 @@ export default function HomeScreen({ navigation, isDarkMode = true }) {
       try {
         const saveResult = await db.saveTransaction(result.local);
         if (saveResult.success) {
-          setParseResult(result);
           showSuccess('Saved!', `₹${result.local.amount} recorded`);
           await fetchRecentTransactions();
-          setSmsText('');
+          setShowSmsSheet(false);
         } else if (saveResult.reason === 'duplicate') {
           showError('Duplicate', 'This transaction already exists');
         }
@@ -137,7 +151,6 @@ export default function HomeScreen({ navigation, isDarkMode = true }) {
       showError('Parsing Failed', 'Could not understand this SMS');
     }
   };
-
 
   const handleDeleteTransaction = async (id) => {
     try {
@@ -152,58 +165,16 @@ export default function HomeScreen({ navigation, isDarkMode = true }) {
   const handleAddOptionSelect = (option) => {
     setShowAddOptions(false);
     if (option === 'sms') {
-      setTimeout(() => smsInputRef.current?.focus(), 300);
+      setTimeout(() => setShowSmsSheet(true), 300);
     } else if (option === 'manual') {
-      setShowManualAddModal(true);
+      // Small delay so AddTransactionBottomSheet closes cleanly first
+      setTimeout(() => {
+        navigation.navigate('EditTransaction', {
+          transaction: null,
+          onSave: fetchRecentTransactions,
+        });
+      }, 300);
     }
-  };
-
-  const handleSaveManualTransaction = async (newTransaction) => {
-    try {
-      const timestamp = Date.now();
-      const hashString = `MANUAL_${newTransaction.merchant}_${newTransaction.amount}_${newTransaction.date}_${timestamp}`;
-      const hash = hashString.toLowerCase().replace(/\s+/g, '');
-
-      const transactionToSave = {
-        hash: hash,
-        amount: parseFloat(newTransaction.amount),
-        type: newTransaction.type || 'debit',
-        date: newTransaction.date,
-        merchant: newTransaction.merchant.trim(),
-        category: newTransaction.category || 'Others',
-        bank: newTransaction.bank_name?.trim() || 'Unknown',
-        transactionMethod: 'Manual Entry',
-        rawSms: 'MANUAL_ENTRY',
-        senderName: null,
-        accountNumber: null,
-        accountNumberMasked: null,
-        refNumber: null,
-        timestamp: new Date().toISOString(),
-      };
-
-      const saveResult = await db.saveTransaction(transactionToSave);
-
-      if (saveResult.success) {
-        setShowManualAddModal(false);
-        showSuccess('Added!', `₹${newTransaction.amount} transaction added`);
-        await fetchRecentTransactions();
-      } else if (saveResult.reason === 'duplicate') {
-        showError('Duplicate', 'This transaction already exists');
-      }
-    } catch (error) {
-      showError('Save Failed', 'Could not save transaction');
-    }
-  };
-
-  const emptyTransaction = {
-    id: null,
-    amount: '',
-    merchant: '',
-    category: 'Others',
-    date: new Date().toISOString(),
-    bank_name: '',
-    type: 'debit',
-    notes: '',
   };
 
   return (
@@ -213,74 +184,50 @@ export default function HomeScreen({ navigation, isDarkMode = true }) {
 
           {/* Header */}
           <View style={styles.topBar}>
-            <View style={styles.userInfo}>
-              <View style={styles.avatarPlaceholder}>
-                <Image source={{ uri: 'https://i.pravatar.cc/150?u=user1' }} style={styles.avatar} />
-              </View>
-              <View style={styles.brandInfo}>
-                <Text style={[styles.brandText, { color: theme.text, fontFamily: FONTS.bold }]}>Pulse</Text>
-                <View style={styles.liveBadge}>
-                  <View style={styles.liveDot} />
-                  <Text style={styles.liveText}>LIVE DATA</Text>
-                </View>
-              </View>
+            <View style={styles.brandInfo}>
+              <Text style={[styles.welcomeText, { color: theme.textTertiary, fontFamily: FONTS.regular }]}>
+                Welcome,
+              </Text>
+              <Text style={[styles.userName, { color: theme.text, fontFamily: FONTS.bold }]}>
+                {userName || 'User!'}
+              </Text>
             </View>
-            <TouchableOpacity style={[styles.filterBtn, { backgroundColor: theme.card }]}>
-              <Ionicons name="options-outline" size={22} color={theme.text} />
+
+            <TouchableOpacity
+              style={[styles.iconBtn, { backgroundColor: theme.card }]}
+              onPress={() => navigation.navigate('Notifications')}
+            >
+              {hasUnreadNotifs && <View style={styles.notifBadge} />}
+              <Ionicons name="notifications-outline" size={22} color={theme.text} />
             </TouchableOpacity>
           </View>
 
-          <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
-
-            {/* Wrapped Sections for Horizontal Padding */}
-            <View style={styles.horizontalPadding}>
-              {/* Input Card */}
-              <View style={[styles.debugCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
-                <TextInput
-                  ref={smsInputRef}
-                  style={[styles.input, { color: theme.text, fontFamily: FONTS.regular }]}
-                  placeholder="Paste transaction SMS..."
-                  placeholderTextColor={theme.textTertiary}
-                  value={smsText}
-                  onChangeText={setSmsText}
-                  multiline
-                />
-                <TouchableOpacity
-                  style={[styles.sendIcon, { backgroundColor: COLORS.primary }]}
-                  onPress={handleSendToBackend}
-                  disabled={isSending}
-                >
-                  <Ionicons name="flash" size={18} color="black" />
-                </TouchableOpacity>
-              </View>
-
-              {/* Main Spending Card */}
-              <MainSpendingCard
-                amount={recentTotal}
-                isDarkMode={isDarkMode}
+          <ScrollView
+            contentContainerStyle={styles.scrollContent}
+            keyboardShouldPersistTaps="handled"
+            showsVerticalScrollIndicator={false}
+          >
+            {showSmsBanner && (
+              <SmsPermissionBanner
                 theme={theme}
+                db={db}
+                onGranted={() => setShowSmsBanner(false)}
+                onDismiss={() => setShowSmsBanner(false)}
               />
+            )}
 
-              {/* Small Stats Row */}
-              <StatSummaryRow
-                income={incomeTotal}
-                expenses={expenseTotal}
-                theme={theme}
-              />
+            <View style={styles.padded}>
+              <MainSpendingCard amount={recentTotal} isDarkMode={isDarkMode} theme={theme} />
+              <StatSummaryRow income={incomeTotal} expenses={expenseTotal} theme={theme} />
 
-              {/* Recent Feed Header */}
               <View style={styles.feedHeader}>
                 <Text style={[styles.feedTitle, { color: theme.text, fontFamily: FONTS.semiBold }]}>
                   Recent Activity
                 </Text>
-                <AddButton
-                  onPress={() => setShowAddOptions(true)}
-                  theme={theme}
-                />
+                <AddButton onPress={() => setShowAddOptions(true)} theme={theme} />
               </View>
             </View>
 
-            {/* Transaction List - Edge to Edge */}
             <View style={styles.transactionList}>
               {transactions.length > 0 ? (
                 transactions.map((item, index) => (
@@ -307,8 +254,7 @@ export default function HomeScreen({ navigation, isDarkMode = true }) {
               )}
             </View>
 
-            {/* Bottom Sections Wrapped in Padding again */}
-            <View style={styles.horizontalPadding}>
+            <View style={styles.padded}>
               {transactions.length > 0 && (
                 <TouchableOpacity style={styles.viewHistory} onPress={() => navigation.navigate('Transactions')}>
                   <Text style={[styles.historyText, { color: COLORS.primary, fontFamily: FONTS.medium }]}>
@@ -316,61 +262,7 @@ export default function HomeScreen({ navigation, isDarkMode = true }) {
                   </Text>
                 </TouchableOpacity>
               )}
-
-              {/* My Accounts Section Header */}
-              {/* <View style={styles.sectionHeader}>
-                <Text style={[styles.feedTitle, { color: theme.text, fontFamily: FONTS.semiBold }]}>My Accounts</Text>
-                <TouchableOpacity onPress={() => navigation.navigate('AccountsAll')}>
-                  <Text style={{ color: COLORS.primary, fontSize: 12 }}>See All</Text>
-                </TouchableOpacity>
-              </View> */}
             </View>
-
-            {/* Accounts Scroll - Edge to Edge Swiping */}
-            {/* <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.accountScroll}
-              snapToInterval={280 + 12}
-              decelerationRate="fast"
-            >
-              {accounts.length > 0 ? accounts.map((acc) => (
-                <TouchableOpacity
-                  key={acc.id}
-                  activeOpacity={0.9}
-                  style={[styles.bankCard, { backgroundColor: theme.card }]}
-                  onPress={() => navigation.navigate('SpecificBankDetail', { filterBank: acc.name })}
-                >
-                  <View style={styles.cardLeft}>
-                    <Text style={[styles.bankName, { color: theme.text, fontFamily: FONTS.bold }]}>
-                      {acc.name}
-                    </Text>
-                    <Text style={[styles.accNo, { color: theme.textTertiary }]}>
-                      {acc.accNo}
-                    </Text>
-                    <View style={styles.cardInfo}>
-                      <Ionicons name="stats-chart" size={12} color={theme.textTertiary} />
-                      <Text style={[styles.lastTrans, { color: theme.textSecondary }]}>
-                        Last: <Text style={{ color: acc.type === 'debit' ? '#FF3B30' : '#34C759' }}>
-                          ₹{acc.lastAmount}
-                        </Text>
-                      </Text>
-                    </View>
-                  </View>
-                  <View style={styles.cardRight}>
-                    <Image
-                      source={require('../assets/Bank3d.png')}
-                      style={styles.bankImage3d}
-                      resizeMode="contain"
-                    />
-                  </View>
-                </TouchableOpacity>
-              )) : (
-                <View style={[styles.bankCard, { width: width - 48, justifyContent: 'center', marginLeft: 24 }]}>
-                  <Text style={{ color: theme.textTertiary, textAlign: 'center' }}>No accounts detected yet</Text>
-                </View>
-              )}
-            </ScrollView> */}
 
             <View style={{ height: 120 }} />
           </ScrollView>
@@ -379,7 +271,8 @@ export default function HomeScreen({ navigation, isDarkMode = true }) {
 
       <BottomNavBar active="Home" onNavigate={handleNavigate} isDarkMode={isDarkMode} />
 
-      <Modal visible={showAnimation} transparent={true} animationType="fade">
+      {/* SMS processing animation */}
+      <Modal visible={showAnimation} transparent animationType="fade">
         <View style={styles.modalOverlay}>
           <View style={[styles.animationContainer, { backgroundColor: theme.card }]}>
             <LottieView
@@ -389,7 +282,7 @@ export default function HomeScreen({ navigation, isDarkMode = true }) {
               loop
             />
             <Text style={[styles.animationText, { color: theme.text, fontFamily: FONTS.semiBold }]}>
-              Syncing Pulse...
+              Syncing Pace...
             </Text>
           </View>
         </View>
@@ -403,13 +296,12 @@ export default function HomeScreen({ navigation, isDarkMode = true }) {
         onClose={() => setShowAddOptions(false)}
       />
 
-      <EditTransactionModal
-        visible={showManualAddModal}
-        transaction={emptyTransaction}
+      <SmsInputBottomSheet
+        visible={showSmsSheet}
         theme={theme}
-        db={db}
-        onClose={() => setShowManualAddModal(false)}
-        onSave={handleSaveManualTransaction}
+        isSending={isSending}
+        onClose={() => setShowSmsSheet(false)}
+        onSend={handleSmsSend}
       />
 
       {toast && <Toast {...toast} onHide={hideToast} isDarkMode={isDarkMode} />}
@@ -426,92 +318,54 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: 24,
-    paddingVertical: 12
+    paddingVertical: 12,
   },
-  userInfo: { flexDirection: 'row', alignItems: 'center' },
-  avatarPlaceholder: { width: 38, height: 38, borderRadius: 19, overflow: 'hidden', marginRight: 12 },
-  avatar: { width: '100%', height: '100%' },
   brandInfo: { gap: 2 },
-  brandText: { fontSize: 18 },
-  liveBadge: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  liveDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: COLORS.primary },
-  liveText: { fontSize: 10, color: COLORS.primary, letterSpacing: 1, fontWeight: '800' },
-  filterBtn: { width: 42, height: 42, borderRadius: 12, justifyContent: 'center', alignItems: 'center' },
-
-  // FIXED PADDING LOGIC
-  scrollContent: { paddingHorizontal: 0, paddingTop: 10 },
-  horizontalPadding: { paddingHorizontal: 24 },
-
-  debugCard: {
-    borderRadius: 18,
-    borderWidth: 1,
-    padding: 12,
-    marginBottom: 20,
-    flexDirection: 'row',
-    alignItems: 'center'
+  welcomeText: { fontSize: 13 },
+  userName: { fontSize: 22 },
+  iconBtn: {
+    width: 42,
+    height: 42,
+    borderRadius: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
-  input: { flex: 1, fontSize: 14, paddingRight: 10, minHeight: 40 },
-  sendIcon: { width: 34, height: 34, borderRadius: 10, justifyContent: 'center', alignItems: 'center' },
-
+  notifBadge: {
+    position: 'absolute',
+    top: 9,
+    right: 9,
+    width: 7,
+    height: 7,
+    borderRadius: 4,
+    backgroundColor: COLORS.error,
+    zIndex: 1,
+  },
+  scrollContent: { paddingTop: 10 },
+  padded: { paddingHorizontal: 24 },
   feedHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 16
+    marginBottom: 16,
+    marginTop: 8,
   },
   feedTitle: { fontSize: 18 },
   transactionList: { marginBottom: 10 },
   viewHistory: { alignItems: 'center', marginTop: 10 },
   historyText: { fontSize: 14 },
-
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.85)',
+    backgroundColor: 'rgba(0,0,0,0.85)',
     justifyContent: 'center',
-    alignItems: 'center'
+    alignItems: 'center',
   },
   animationContainer: {
     width: 280,
     height: 280,
     borderRadius: 32,
     alignItems: 'center',
-    justifyContent: 'center'
+    justifyContent: 'center',
   },
   lottie: { width: 160, height: 160 },
   animationText: { fontSize: 16, marginTop: 10 },
-
-  sectionHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginTop: 25,
-    marginBottom: 15
-  },
-
-  accountScroll: {
-    paddingHorizontal: 24,
-    gap: 12,
-    paddingBottom: 10,
-  },
-  bankCard: {
-    width: 280,
-    height: 140,
-    padding: 20,
-    borderRadius: 28,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 2,
-  },
-  cardLeft: { flex: 1, justifyContent: 'center', gap: 4 },
-  bankName: { fontSize: 17 },
-  accNo: { fontSize: 12, letterSpacing: 0.5 },
-  cardInfo: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 8 },
-  lastTrans: { fontSize: 11, fontFamily: FONTS.medium },
-  cardRight: { width: 90, height: 90, justifyContent: 'center', alignItems: 'center' },
-  bankImage3d: { width: 100, height: 100, position: 'absolute', right: -5 },
 });

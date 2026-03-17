@@ -1,5 +1,9 @@
 import React, { useEffect, useRef } from 'react';
 import { View, StyleSheet, StatusBar, Animated, Easing } from 'react-native';
+import * as SecureStore from 'expo-secure-store';
+
+import { USER_NAME_KEY } from './Namescreen';
+
 import Svg, { Path } from 'react-native-svg';
 import { THEME } from '../constants/Themes';
 import { FONTS } from '../constants/Fonts';
@@ -7,6 +11,7 @@ import { FONTS } from '../constants/Fonts';
 const AnimatedPath = Animated.createAnimatedComponent(Path);
 
 export default function SplashScreen({ navigation, isDarkMode = true }) {
+
   const bgColor = isDarkMode ? '#0A0F0A' : '#F8FFF5';
 
   const strokeAnimation = useRef(new Animated.Value(1000)).current;
@@ -52,8 +57,25 @@ export default function SplashScreen({ navigation, isDarkMode = true }) {
           useNativeDriver: true,
         }),
       ]),
-    ]).start(() => {
-      setTimeout(() => navigation.replace('Home'), 1000);
+    ]).start(async () => {
+      setTimeout(async () => {
+        try {
+          const hasSeenOnboarding = await SecureStore.getItemAsync('hasSeenOnboarding');
+          const userName = await SecureStore.getItemAsync('pulse_user_name');
+
+          if (!hasSeenOnboarding) {
+
+            navigation.replace('Onboarding');
+          } else if (!userName) {
+
+            navigation.replace('NameScreen');
+          } else {
+            navigation.replace('Home');
+          }
+        } catch (e) {
+          navigation.replace('Onboarding');
+        }
+      }, 1000);
     });
   }, []);
 

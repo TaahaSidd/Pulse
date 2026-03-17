@@ -27,6 +27,8 @@ import Toast from '../components/Toast';
 import ScreenHeader from '../components/ScreenHeader';
 import Button from '../components/Button';
 import BudgetDetailedCard from '../components/BudgetDetailedCard';
+import BudgetCategoryList from '../components/BudgetCategoryList';
+
 
 const { width } = Dimensions.get('window');
 
@@ -235,67 +237,12 @@ export default function BudgetOverviewScreen({ navigation, isDarkMode = true }) 
 
                     {/* Category Breakdown */}
                     {monthlyBudget?.allocations && (
-                        <View style={styles.categoriesSection}>
-                            <View style={styles.sectionHeader}>
-                                <Text style={[styles.sectionTitle, { color: theme.text, fontFamily: FONTS.bold }]}>
-                                    Category Breakdown
-                                </Text>
-                                <TouchableOpacity onPress={() => navigation.navigate('BudgetSetting')}>
-                                    <Text style={[styles.editLink, { color: COLORS.primary, fontFamily: FONTS.medium }]}>
-                                        Edit
-                                    </Text>
-                                </TouchableOpacity>
-                            </View>
-
-                            {monthlyBudget.allocations.map((allocation, index) => {
-                                const spent = spending[allocation.category] || 0;
-                                const allocated = allocation.allocated_amount;
-                                const percentage = allocated > 0 ? (spent / allocated) * 100 : 0;
-                                const remaining = allocated - spent;
-
-                                return (
-                                    <View key={index} style={[styles.categoryCard, { backgroundColor: theme.card }]}>
-                                        <View style={styles.categoryHeader}>
-                                            <Text style={[styles.categoryName, { color: theme.text, fontFamily: FONTS.semiBold }]}>
-                                                {allocation.category}
-                                            </Text>
-                                            <Text style={[styles.categoryAmount, {
-                                                color: percentage > 100 ? COLORS.error : theme.text,
-                                                fontFamily: FONTS.bold
-                                            }]}>
-                                                ₹{spent.toFixed(0)} / ₹{allocated.toLocaleString()}
-                                            </Text>
-                                        </View>
-
-                                        {/* Progress Bar */}
-                                        <View style={[styles.progressBar, { backgroundColor: theme.border }]}>
-                                            <View style={[
-                                                styles.progressFill,
-                                                {
-                                                    width: `${Math.min(percentage, 100)}%`,
-                                                    backgroundColor: percentage > 100 ? COLORS.error : percentage > 80 ? '#FF9500' : COLORS.primary,
-                                                }
-                                            ]} />
-                                        </View>
-
-                                        <View style={styles.categoryFooter}>
-                                            <Text style={[styles.categoryPercentage, {
-                                                color: percentage > 100 ? COLORS.error : theme.textSecondary,
-                                                fontFamily: FONTS.regular
-                                            }]}>
-                                                {Math.round(percentage)}% used
-                                            </Text>
-                                            <Text style={[styles.categoryRemaining, {
-                                                color: remaining >= 0 ? theme.textTertiary : COLORS.error,
-                                                fontFamily: FONTS.regular
-                                            }]}>
-                                                {remaining >= 0 ? `₹${remaining.toFixed(0)} left` : `₹${Math.abs(remaining).toFixed(0)} over`}
-                                            </Text>
-                                        </View>
-                                    </View>
-                                );
-                            })}
-                        </View>
+                        <BudgetCategoryList
+                            allocations={monthlyBudget.allocations}
+                            spending={spending}
+                            theme={theme}
+                            onEditPress={() => navigation.navigate('BudgetSetting')}
+                        />
                     )}
 
                     <View style={{ height: 100 }} />

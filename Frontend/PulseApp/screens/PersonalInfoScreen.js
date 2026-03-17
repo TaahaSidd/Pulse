@@ -1,208 +1,128 @@
-import React from 'react';
-import { StyleSheet, Text, View, TouchableOpacity, ScrollView } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { StyleSheet, Text, View, ScrollView } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import * as SecureStore from 'expo-secure-store';
+import { useIsFocused } from '@react-navigation/native';
 import { getThemedColors, COLORS } from '../constants/Colors';
 import { FONTS } from '../constants/Fonts';
 
 import ScreenHeader from '../components/ScreenHeader';
 import Button from '../components/Button';
 
+export const USER_NAME_KEY = 'pulse_user_name';
+export const USER_AVATAR_KEY = 'pulse_user_avatar';
+
+// Keep in sync with EditProfileScreen and UserProfileScreen
+const PACE_AVATARS = {
+  '1': { name: 'flash', color: '#8CF364' },
+  '2': { name: 'leaf', color: '#4ADE80' },
+  '3': { name: 'planet', color: '#22D3EE' },
+  '4': { name: 'analytics', color: '#FACC15' },
+  '5': { name: 'infinite', color: '#A855F7' },
+  '6': { name: 'flame', color: '#FB923C' },
+  '7': { name: 'diamond', color: '#38BDF8' },
+  '8': { name: 'rocket', color: '#F472B6' },
+  '9': { name: 'skull', color: '#94A3B8' },
+  '10': { name: 'thunderstorm', color: '#818CF8' },
+};
+
 export default function PersonalInfoScreen({ navigation, isDarkMode = true }) {
   const theme = getThemedColors(isDarkMode);
+  const isFocused = useIsFocused();
+  const [name, setName] = useState('User');
+  const [avatarData, setAvatarData] = useState(null);
 
-  const InfoGroup = ({ label, value }) => (
-    <View style={[styles.infoRow, { borderBottomColor: theme.border }]}>
-      <Text style={[styles.infoLabel, { color: theme.textTertiary, fontFamily: FONTS.semiBold }]}>{label}</Text>
-      <Text style={[styles.infoValue, { color: theme.text, fontFamily: FONTS.medium }]}>{value}</Text>
-    </View>
-  );
+  useEffect(() => {
+    const loadIdentity = async () => {
+      try {
+        const savedName = await SecureStore.getItemAsync(USER_NAME_KEY);
+        const savedAvatarId = await SecureStore.getItemAsync(USER_AVATAR_KEY);
+        if (savedName) setName(savedName);
+        setAvatarData(savedAvatarId && PACE_AVATARS[savedAvatarId] ? PACE_AVATARS[savedAvatarId] : null);
+      } catch (e) {
+        console.error('Load error', e);
+      }
+    };
+    if (isFocused) loadIdentity();
+  }, [isFocused]);
 
   return (
     <View style={[styles.container, { backgroundColor: theme.bg }]}>
-      {/* <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()}>
-          <Ionicons name="chevron-back" size={28} color={COLORS.primary} />
-        </TouchableOpacity>
-        <TouchableOpacity>
-          <Text style={[styles.headerLink, { color: COLORS.primary, fontFamily: FONTS.semiBold }]}>Help</Text>
-        </TouchableOpacity>
-      </View> */}
+      <ScreenHeader mode="simple" theme={theme} title="Identity" showBack onBackPress={() => navigation.goBack()} />
 
-      <ScreenHeader
-        mode="simple"
-        theme={theme}
-        title="Personal Information"
-        showBack={true}
-        onBackPress={() => navigation.goBack()}
-      />
+      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
 
-      <ScrollView contentContainerStyle=
-        {styles.scrollContent}
-        showsVerticalScrollIndicator={false}
-      >
-        {/* <Text style={[styles.screenTitle, { color: theme.text, fontFamily: FONTS.bold }]}>Personal Information</Text> */}
-
-        <View style={styles.avatarSection}>
-          <View style={[styles.avatarCircle, { backgroundColor: theme.card }]}>
-            <Ionicons name="person" size={50} color={theme.textTertiary} />
+        <View style={[styles.identityCard, { backgroundColor: theme.card, borderColor: avatarData ? avatarData.color + '40' : theme.border }]}>
+          <View style={[styles.avatarMini, { backgroundColor: avatarData ? avatarData.color + '15' : theme.cardElevated }]}>
+            <Ionicons
+              name={avatarData ? avatarData.name : 'person'}
+              size={28}
+              color={avatarData ? avatarData.color : theme.text}
+            />
           </View>
-          <Text style={[styles.userName, { color: theme.text, fontFamily: FONTS.bold }]}>Arjun Sharma</Text>
-          <Text style={[styles.userId, { color: theme.textTertiary }]}>Profile ID: PLS-49210</Text>
-        </View>
-
-        <View style={[styles.card, { backgroundColor: theme.card, borderColor: theme.border }]}>
-          <InfoGroup label="FULL NAME" value="Arjun Sharma" />
-          <InfoGroup label="EMAIL ADDRESS" value="arjun.sharma@example.in" />
-          <InfoGroup label="PHONE NUMBER" value="+91 98765 43210" />
-          <InfoGroup label="DATE OF BIRTH" value="14 May, 1992" />
-        </View>
-
-        <View style={[styles.card, { backgroundColor: theme.card, borderColor: theme.border, marginTop: 20 }]}>
-          <View style={styles.infoRow}>
-            <Text style={[styles.infoLabel, { color: theme.textTertiary }]}>LOCATION</Text>
-            <Text style={[styles.infoValue, { color: theme.text }]}>Mumbai, Maharashtra, India</Text>
+          <View style={styles.nameMeta}>
+            <Text style={[styles.userName, { color: theme.text, fontFamily: FONTS.bold }]} numberOfLines={1}>
+              {name}
+            </Text>
+            <View style={styles.statusBadge}>
+              <Ionicons name="shield-checkmark" size={12} color={COLORS.primary} />
+              <Text style={[styles.statusText, { color: COLORS.primary, fontFamily: FONTS.bold }]}>LOCAL PROFILE</Text>
+            </View>
           </View>
         </View>
 
-        <Button
-          title="Edit Profile"
-          icon="pencil"
-          style={{ marginTop: 30 }}
-          onPress={() => navigation.navigate('EditProfile')}
-        />
+        <View style={styles.actionContainer}>
+          <Button
+            title="Edit Identity"
+            variant="primary"
+            icon="pencil-outline"
+            fullWidth
+            onPress={() => navigation.navigate('EditProfile')}
+          />
+        </View>
+
+        <View style={styles.footerBrandingContainer}>
+          <Text style={[styles.megaBrandText, { color: theme.text, opacity: 0.06 }]}>
+            Privacy-first{"\n"}Architecture.
+          </Text>
+        </View>
+
+        <View style={{ height: 120 }} />
       </ScrollView>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-  scrollContent: {
-    paddingHorizontal: 20,
-    paddingBottom: 40,
-  },
-  header: {
+  container: { flex: 1 },
+  scrollContent: { paddingHorizontal: 20, paddingTop: 20 },
+  identityCard: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    marginTop: 60,
-    paddingHorizontal: 20,
-    marginBottom: 20,
-  },
-  headerLink: {
-    fontSize: 16,
-  },
-  screenTitle: {
-    fontSize: 32,
-    marginBottom: 30,
-  },
-
-  // --- PERSONAL INFO SPECIFIC ---
-  avatarSection: {
-    alignItems: 'center',
-    marginBottom: 30,
-  },
-  avatarCircle: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 15,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.05)',
-  },
-  userName: {
-    fontSize: 22,
-    marginBottom: 4,
-  },
-  userId: {
-    fontSize: 13,
-    opacity: 0.6,
-  },
-  card: {
-    borderRadius: 24,
-    borderWidth: 1,
-    overflow: 'hidden',
-  },
-  infoRow: {
-    padding: 20,
-    borderBottomWidth: 1,
-  },
-  infoLabel: {
-    fontSize: 11,
-    letterSpacing: 1,
-    marginBottom: 6,
-    textTransform: 'uppercase',
-  },
-  infoValue: {
-    fontSize: 16,
-  },
-
-  // --- EDIT PROFILE SPECIFIC ---
-  profilePicContainer: {
-    alignItems: 'center',
-    marginBottom: 35,
-  },
-  picCircle: {
-    width: 110,
-    height: 110,
-    borderRadius: 55,
-    borderWidth: 2,
-    borderStyle: 'dashed',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 10,
-  },
-  changeText: {
-    fontSize: 10,
-    fontFamily: FONTS.bold,
-    marginTop: 4,
-  },
-  picLabel: {
-    fontSize: 12,
-    fontFamily: FONTS.semiBold,
-  },
-
-  // Custom Notched Input Styles
-  inputWrapper: {
-    marginBottom: 25,
-    position: 'relative',
-  },
-  labelTag: {
-    position: 'absolute',
-    top: -10,
-    left: 15,
-    zIndex: 2,
-    paddingHorizontal: 8,
-  },
-  labelText: {
-    fontSize: 12,
-    fontFamily: FONTS.bold,
-    textTransform: 'uppercase',
-  },
-  inputContainer: {
-    height: 60,
-    borderRadius: 18,
+    padding: 16,
+    borderRadius: 20,
     borderWidth: 1.5,
+    marginBottom: 24,
+    gap: 14,
+  },
+  avatarMini: {
+    width: 52,
+    height: 52,
+    borderRadius: 16,
     justifyContent: 'center',
-    paddingHorizontal: 16,
+    alignItems: 'center',
   },
-  textInput: {
-    fontSize: 16,
-    fontFamily: FONTS.medium,
-  },
-
-  buttonGroup: {
-    marginTop: 20,
-  },
-  securityText: {
-    textAlign: 'center',
-    fontSize: 11,
-    lineHeight: 18,
-    marginTop: 30,
-    opacity: 0.5,
+  nameMeta: { flex: 1 },
+  userName: { fontSize: 18, marginBottom: 4 },
+  statusBadge: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  statusText: { fontSize: 10, letterSpacing: 1 },
+  actionContainer: { marginBottom: 40 },
+  footerBrandingContainer: { marginTop: 30, paddingHorizontal: 10 },
+  megaBrandText: {
+    fontSize: 46,
+    fontFamily: FONTS.bold,
+    letterSpacing: -1,
+    lineHeight: 52,
+    includeFontPadding: false,
   },
 });

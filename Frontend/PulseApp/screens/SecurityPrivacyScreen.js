@@ -49,18 +49,18 @@ export default function SecurityPrivacyScreen({ navigation, isDarkMode = true })
       />
 
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        <InfoBox
+        {/* <InfoBox
           type="success"
           icon="shield-checkmark"
           text="Your financial data is stored locally and never leaves this device."
           isDarkMode={isDarkMode}
-        />
+        /> */}
 
         <Text style={[styles.sectionLabel, { color: theme.textSecondary, fontFamily: FONTS.bold }]}>DATA PROTECTION</Text>
 
         <TrustCard
           title="On-Device Parsing"
-          description="Pulse processes SMS locally using a secure sandbox. Raw message content is never uploaded to any cloud."
+          description="Pace processes SMS locally using a secure sandbox. Raw message content is never uploaded to any cloud."
         />
 
         <TrustCard
@@ -75,14 +75,14 @@ export default function SecurityPrivacyScreen({ navigation, isDarkMode = true })
             label="Privacy Policy"
             theme={theme}
             rightComponent={<Ionicons name="open-outline" size={16} color={theme.textTertiary} />}
-            onPress={() => Linking.openURL('https://yourwebsite.com/privacy')}
+            onPress={() => Linking.openURL('https://doc-hosting.flycricket.io/pace-privacy-policy/d4166815-f8ba-4bb9-a2f8-dd3a22c6e0d8/privacy')}
           />
           <GeneralActionItem
             label="Terms of Service"
             theme={theme}
             isLast={true}
             rightComponent={<Ionicons name="open-outline" size={16} color={theme.textTertiary} />}
-            onPress={() => Linking.openURL('https://yourwebsite.com/terms')}
+            onPress={() => Linking.openURL('https://doc-hosting.flycricket.io/pace-privacy-policy/d4166815-f8ba-4bb9-a2f8-dd3a22c6e0d8/privacy')}
           />
         </View>
 
@@ -106,14 +106,14 @@ export default function SecurityPrivacyScreen({ navigation, isDarkMode = true })
         </View>
 
         {/* 🆕 SYSTEM INFO (Added value for offline users) */}
-        <View style={styles.systemInfo}>
+        {/* <View style={styles.systemInfo}>
           <Text style={[styles.systemText, { color: theme.textTertiary, fontFamily: FONTS.medium }]}>
             Storage: Local SQLite Database
           </Text>
           <Text style={[styles.systemText, { color: theme.textTertiary, fontFamily: FONTS.medium }]}>
             Pulse Version 1.0.0 (Stable)
           </Text>
-        </View>
+        </View> */}
 
         <View style={{ height: 40 }} />
       </ScrollView>

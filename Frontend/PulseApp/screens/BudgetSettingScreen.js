@@ -251,7 +251,8 @@ export default function BudgetSettingScreen({ navigation, isDarkMode = true }) {
   const numericTotal = parseInt(totalBudget.replace(/,/g, '')) || 0;
   const allocationPct = numericTotal > 0 ? (totalAllocated / numericTotal) * 100 : 0;
   const remaining = numericTotal - totalAllocated;
-  const availableToAdd = optionalCategories.filter(catName => !allocations.find(a => a.name === catName));
+  const allCategories = [...CategoryMapper.getCoreCategories(), ...CategoryMapper.getOptionalCategories()];
+  const availableToAdd = allCategories.filter(catName => !allocations.find(a => a.name === catName));
 
   if (isLoading) {
     return (

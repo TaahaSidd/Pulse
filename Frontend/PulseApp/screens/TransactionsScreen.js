@@ -27,6 +27,8 @@ import TransactionFilterModal from '../components/TransactionFilterModal';
 import { useToast } from '../hooks/useToast';
 
 import NotfoundSVG from '../assets/Svg/Notfound.svg';
+import NoTxSVG from '../assets/Svg/no-tx copy.svg';
+
 
 export default function TransactionsScreen({ navigation, isDarkMode = true }) {
   const theme = getThemedColors(isDarkMode);
@@ -40,7 +42,17 @@ export default function TransactionsScreen({ navigation, isDarkMode = true }) {
   const [searchQuery, setSearchQuery] = useState('');
   const [activeFilter, setActiveFilter] = useState('All');
 
-  const filters = ['All', 'Expenses', 'Income'];
+  const [activeFilters, setActiveFilters] = useState({
+    month: [], category: []
+  });
+
+  const handleApplyFilters = (filters) => {
+    setActiveFilters(filters);
+  };
+
+  const handleResetFilters = () => {
+    setActiveFilters({ month: [], category: [] });
+  };
 
   useEffect(() => {
     if (isInitialized) {
@@ -68,18 +80,12 @@ export default function TransactionsScreen({ navigation, isDarkMode = true }) {
     setRefreshing(false);
   }, []);
 
-  // Filter transactions based on active filter and search
   const getFilteredTransactions = () => {
     let filtered = transactions;
 
-    // Apply type filter
-    if (activeFilter === 'Expenses') {
-      filtered = filtered.filter(t => t.type === 'debit');
-    } else if (activeFilter === 'Income') {
-      filtered = filtered.filter(t => t.type === 'credit');
-    }
+    if (activeFilter === 'Expenses') filtered = filtered.filter(t => t.type === 'debit');
+    else if (activeFilter === 'Income') filtered = filtered.filter(t => t.type === 'credit');
 
-    // Apply search filter
     if (searchQuery.trim()) {
       const query = searchQuery.toLowerCase();
       filtered = filtered.filter(t =>
@@ -87,6 +93,18 @@ export default function TransactionsScreen({ navigation, isDarkMode = true }) {
         t.category?.toLowerCase().includes(query) ||
         t.bank?.toLowerCase().includes(query)
       );
+    }
+
+    // Apply modal filters
+    if (activeFilters.category.length > 0)
+      filtered = filtered.filter(t => activeFilters.category.includes(t.category));
+
+    if (activeFilters.month.length > 0) {
+      filtered = filtered.filter(t => {
+        const txDate = parseISO(t.date);
+        const label = format(txDate, 'MMMM yyyy');
+        return activeFilters.month.includes(label);
+      });
     }
 
     return filtered;
@@ -200,7 +218,17 @@ export default function TransactionsScreen({ navigation, isDarkMode = true }) {
         index={index}
         isLast={index === section.data.length - 1}
         theme={theme}
-        onPress={() => navigation.navigate('TransactionDetail', { transaction: item })}
+        onPress={() => navigation.navigate('TransactionDetail', {
+          transaction: item,
+          onUpdate: (updatedTx) => {
+            setTransactions(prev =>
+              prev.map(t => t.id === updatedTx.id ? { ...t, ...updatedTx } : t)
+            );
+          },
+          onDelete: (deletedId) => {
+            setTransactions(prev => prev.filter(t => t.id !== deletedId));
+          }
+        })}
         onDelete={handleDeleteTransaction}
       />
     );
@@ -290,7 +318,8 @@ export default function TransactionsScreen({ navigation, isDarkMode = true }) {
         </View>
       ) : groupedTransactions.length === 0 ? (
         <View style={styles.emptyContainer}>
-          <Ionicons name="receipt-outline" size={64} color={theme.textTertiary} />
+          <NoTxSVG width={200} height={80} />
+
           <Text style={[styles.emptyText, { color: theme.text, fontFamily: FONTS.semiBold }]}>
             No Transactions Yet
           </Text>
@@ -326,11 +355,10 @@ export default function TransactionsScreen({ navigation, isDarkMode = true }) {
         visible={isFilterModalVisible}
         onClose={() => setFilterModalVisible(false)}
         theme={theme}
-        onApply={() => {
-          console.log("Applying filters...");
-        }}
-        onReset={() => {
-        }}
+        isDarkMode={isDarkMode}
+        transactions={transactions}  // ← add this
+        onApply={handleApplyFilters}
+        onReset={handleResetFilters}
       />
 
       <BottomNavBar

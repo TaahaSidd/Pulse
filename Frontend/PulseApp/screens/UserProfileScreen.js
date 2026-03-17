@@ -1,66 +1,72 @@
-import React, { useState } from 'react';
-import {
-  StyleSheet,
-  Text,
-  View,
-  TouchableOpacity,
-  ScrollView,
-  StatusBar,
-} from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { StyleSheet, Text, View, ScrollView, StatusBar } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import * as SecureStore from 'expo-secure-store';
+import { useIsFocused } from '@react-navigation/native';
 import { getThemedColors, COLORS } from '../constants/Colors';
 import { FONTS } from '../constants/Fonts';
 
 import ScreenHeader from '../components/ScreenHeader';
-import Button from '../components/Button';
 import PulseModal from '../components/PulseModal';
 import GeneralActionItem from '../components/GeneralActionItem';
-import GeneralInfoCard from '../components/GeneralInfoCard';
 
-import { useAuth } from '../context/AuthContext';
+export const USER_NAME_KEY = 'pulse_user_name';
+export const USER_AVATAR_KEY = 'pulse_user_avatar';
+
+export const PACE_AVATARS = {
+  '1': { name: 'flash', color: '#8CF364' },
+  '2': { name: 'leaf', color: '#4ADE80' },
+  '3': { name: 'planet', color: '#22D3EE' },
+  '4': { name: 'analytics', color: '#FACC15' },
+  '5': { name: 'infinite', color: '#A855F7' },
+  '6': { name: 'flame', color: '#FB923C' },
+  '7': { name: 'diamond', color: '#38BDF8' },
+  '8': { name: 'rocket', color: '#F472B6' },
+  '9': { name: 'skull', color: '#94A3B8' },
+  '10': { name: 'thunderstorm', color: '#818CF8' },
+};
 
 export default function UserProfileScreen({ navigation, isDarkMode = true }) {
-  const { user, loading } = useAuth();
-
   const theme = getThemedColors(isDarkMode);
+  const isFocused = useIsFocused();
   const [modalVisible, setModalVisible] = useState(false);
+  const [name, setName] = useState('Guest');
+  const [avatarData, setAvatarData] = useState(null);
 
-  const displayName = user?.user_metadata?.name ||
-    user?.user_metadata?.full_name ||
-    'Guest';
-
-  const email = user?.email || 'No email';
-
-  console.log('User data', user);
+  useEffect(() => {
+    const loadIdentity = async () => {
+      try {
+        const savedName = await SecureStore.getItemAsync(USER_NAME_KEY);
+        const savedAvatarId = await SecureStore.getItemAsync(USER_AVATAR_KEY);
+        if (savedName) setName(savedName);
+        setAvatarData(savedAvatarId && PACE_AVATARS[savedAvatarId] ? PACE_AVATARS[savedAvatarId] : null);
+      } catch (e) {
+        console.log('Error loading local profile', e);
+      }
+    };
+    if (isFocused) loadIdentity();
+  }, [isFocused]);
 
   return (
     <View style={[styles.container, { backgroundColor: theme.bg }]}>
-      <StatusBar barStyle={isDarkMode ? "light-content" : "dark-content"} />
-
-      <ScreenHeader
-        mode="simple"
-        theme={theme}
-        title="Account"
-        showBack={true}
-        onBackPress={() => navigation.goBack()}
-      />
+      <StatusBar barStyle={isDarkMode ? 'light-content' : 'dark-content'} />
+      <ScreenHeader mode="simple" theme={theme} title="Account" showBack onBackPress={() => navigation.goBack()} />
 
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-
-        {/* Profile Avatar Section */}
         <View style={styles.avatarSection}>
-          <View style={styles.avatarWrapper}>
-            <View style={[styles.avatarCircle, { backgroundColor: theme.card }]}>
-              <Ionicons name="person" size={60} color={theme.textTertiary} />
-            </View>
+          <View style={[styles.avatarCircle, { backgroundColor: theme.card, borderColor: avatarData ? avatarData.color + '40' : theme.border }]}>
+            <Ionicons
+              name={avatarData ? avatarData.name : 'person'}
+              size={60}
+              color={avatarData ? avatarData.color : theme.textTertiary}
+            />
           </View>
-          <Text style={[styles.userName, { color: theme.text, fontFamily: FONTS.bold }]}>{displayName}</Text>
-          <Text style={[styles.userEmail, { color: theme.textTertiary, fontFamily: FONTS.regular }]}>{email}</Text>
+          <Text style={[styles.userName, { color: theme.text, fontFamily: FONTS.bold }]}>{name}</Text>
+          <Text style={[styles.userSub, { color: theme.textTertiary, fontFamily: FONTS.regular }]}>Local Profile</Text>
         </View>
 
-        {/* Account Settings Group */}
         <View style={styles.section}>
-          <Text style={[styles.sectionTitle, { color: theme.textSecondary, fontFamily: FONTS.semiBold }]}>ACCOUNT SETTINGS</Text>
+          <Text style={[styles.sectionTitle, { color: theme.textSecondary, fontFamily: FONTS.semiBold }]}>ACCOUNT</Text>
           <View style={[styles.card, { backgroundColor: theme.card, borderColor: theme.border }]}>
             <GeneralActionItem
               icon="person-outline"
@@ -72,53 +78,11 @@ export default function UserProfileScreen({ navigation, isDarkMode = true }) {
               icon="shield-checkmark-outline"
               label="Security & Privacy"
               theme={theme}
+              isLast
               onPress={() => navigation.navigate('SecurityPrivacy')}
             />
-            <GeneralActionItem
-              icon="notifications-outline"
-              label="Notification Preferences"
-              theme={theme}
-              isLast={true}
-              onPress={() => navigation.navigate('NotificationPreferences')}
-            />
           </View>
         </View>
-
-        {/* Support Group */}
-        <View style={styles.section}>
-          <Text style={[styles.sectionTitle, { color: theme.textSecondary, fontFamily: FONTS.semiBold }]}>SUPPORT</Text>
-          <View style={[styles.card, { backgroundColor: theme.card, borderColor: theme.border }]}>
-            <GeneralActionItem
-              icon="help-circle-outline"
-              label="Help Center"
-              theme={theme}
-              onPress={() => navigation.navigate('HelpCenterScreen')}
-            />
-            <GeneralActionItem
-              icon="chatbubble-ellipses-outline"
-              label="Send Feedback"
-              theme={theme}
-              isLast={true}
-              onPress={() => navigation.navigate('FeedbackScreen')}
-            />
-          </View>
-        </View>
-
-        {/* Danger Action */}
-        {/* <View style={styles.dangerContainer}>
-          <Button
-            title="Hold to Delete Account"
-            variant="danger"
-            icon="trash-outline"
-            holdToTrigger={true}
-            holdDuration={2500}
-            onPress={() => setModalVisible(true)}
-            fullWidth={true}
-          />
-          <Text style={[styles.hintText, { color: theme.textTertiary, fontFamily: FONTS.regular }]}>
-            This action is permanent and clears all local data.
-          </Text>
-        </View> */}
 
         <View style={{ height: 120 }} />
       </ScrollView>
@@ -128,10 +92,7 @@ export default function UserProfileScreen({ navigation, isDarkMode = true }) {
         type="delete"
         isDarkMode={isDarkMode}
         onClose={() => setModalVisible(false)}
-        onPrimaryPress={() => {
-          setModalVisible(false);
-          navigation.replace('Onboarding');
-        }}
+        onPrimaryPress={() => { setModalVisible(false); navigation.replace('Onboarding'); }}
       />
     </View>
   );
@@ -141,16 +102,10 @@ const styles = StyleSheet.create({
   container: { flex: 1 },
   scrollContent: { paddingHorizontal: 20 },
   avatarSection: { alignItems: 'center', marginBottom: 40, marginTop: 20 },
-  avatarWrapper: { position: 'relative', marginBottom: 15 },
-  avatarCircle: { width: 110, height: 110, borderRadius: 55, justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)' },
+  avatarCircle: { width: 110, height: 110, borderRadius: 55, justifyContent: 'center', alignItems: 'center', borderWidth: 1.5, marginBottom: 15 },
   userName: { fontSize: 22, marginBottom: 4 },
-  userEmail: { fontSize: 14, opacity: 0.7 },
+  userSub: { fontSize: 14, opacity: 0.7 },
   section: { marginBottom: 25 },
   sectionTitle: { fontSize: 12, marginBottom: 12, marginLeft: 4, letterSpacing: 1 },
   card: { borderRadius: 24, borderWidth: 1, overflow: 'hidden' },
-  dangerContainer: { marginTop: 10, alignItems: 'center' },
-  hintText: { fontSize: 12, marginTop: 12, textAlign: 'center', opacity: 0.6 },
-  footerBranding: { alignItems: 'center', marginTop: 40 },
-  versionText: { fontSize: 12, opacity: 0.6 },
-  madeWithRow: { flexDirection: 'row', alignItems: 'center', marginTop: 4 },
 });

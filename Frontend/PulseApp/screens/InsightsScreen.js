@@ -47,6 +47,8 @@ export default function InsightsScreen({ navigation, isDarkMode = true }) {
   const [budget, setBudget] = useState(0);
   const [dailySpending, setDailySpending] = useState({});
   const [topCategories, setTopCategories] = useState([]);
+  const [minDate, setMinDate] = useState(null);
+  const [activeMonths, setActiveMonths] = useState([]);
 
   const generateMerchantColor = (index, merchantName) => {
     // 1. Try to get brand color from MerchantMapper
@@ -86,6 +88,27 @@ export default function InsightsScreen({ navigation, isDarkMode = true }) {
     }
   }, [isInitialized, selectedDate]);
 
+  useEffect(() => {
+    if (!isInitialized || !db) return;
+    const fetchMeta = async () => {
+      // Earliest transaction date
+      const result = await db.getFirstAsync(
+        `SELECT MIN(date) as earliest FROM transactions`
+      );
+      if (result?.earliest) setMinDate(new Date(result.earliest));
+
+      // All months that have at least one debit transaction
+      const rows = await db.getAllAsync(
+        `SELECT DISTINCT strftime('%Y-%m', date) as month 
+             FROM transactions 
+             WHERE type = 'debit'
+             ORDER BY month`
+      );
+      setActiveMonths(rows.map(r => r.month));
+    };
+    fetchMeta();
+  }, [isInitialized]);
+
   const loadMonthData = async () => {
     try {
       setLoading(true);
@@ -97,8 +120,10 @@ export default function InsightsScreen({ navigation, isDarkMode = true }) {
       setIncome(totals?.total_received || 0);
       setExpenses(totals?.total_spent || 0);
 
-      // 2. Get Budget
-      const budgetData = await BudgetDB.getCurrentBudget();
+      // 2. Get Budget — use month name + year to match BudgetDB schema
+      const monthName = format(selectedDate, 'MMMM');
+      const year = selectedDate.getFullYear();
+      const budgetData = await BudgetDB.getBudget(monthName, year);
       setBudget(budgetData?.total_amount || 0);
 
       // 3. Process Transactions for Pulse & Merchants
@@ -108,12 +133,10 @@ export default function InsightsScreen({ navigation, isDarkMode = true }) {
 
       transactions.forEach(t => {
         if (t.type === 'debit') {
-          // Pulse Chart Map
           const dateParts = t.date.split('-');
           const day = parseInt(dateParts[2]);
           if (!isNaN(day)) dailyMap[day] = (dailyMap[day] || 0) + t.amount;
 
-          // Advanced Merchant Map
           const mName = t.merchant || 'Unknown';
           if (!merchantMap[mName]) {
             merchantMap[mName] = {
@@ -121,14 +144,13 @@ export default function InsightsScreen({ navigation, isDarkMode = true }) {
               amount: 0,
               count: 0,
               lastDate: t.date,
-              transactions: [] // Pass recent txs to detail screen
+              transactions: []
             };
           }
           merchantMap[mName].amount += t.amount;
           merchantMap[mName].count += 1;
           merchantMap[mName].transactions.push(t);
 
-          // Update lastDate if this one is newer
           if (new Date(t.date) > new Date(merchantMap[mName].lastDate)) {
             merchantMap[mName].lastDate = t.date;
           }
@@ -139,16 +161,23 @@ export default function InsightsScreen({ navigation, isDarkMode = true }) {
       // 4. Set Top Merchants (Sorted by Amount)
       const sortedMerchants = Object.values(merchantMap)
         .sort((a, b) => {
-          if (b.count !== a.count) {
-            return b.count - a.count;
-          }
+          if (b.count !== a.count) return b.count - a.count;
           return b.amount - a.amount;
         });
-
       setTopMerchants(sortedMerchants);
 
       // 5. Get Category Breakdown
       const categories = await db.getSpendingByCategory(monthStart, monthEnd);
+
+      const categoryTransactions = {};
+      transactions.forEach(t => {
+        if (t.type === 'debit') {
+          const cat = t.category || 'Other';
+          if (!categoryTransactions[cat]) categoryTransactions[cat] = [];
+          categoryTransactions[cat].push(t);
+        }
+      });
+
       setTopCategories(categories
         .filter(c => c.spent > 0)
         .sort((a, b) => b.spent - a.spent)
@@ -158,6 +187,9 @@ export default function InsightsScreen({ navigation, isDarkMode = true }) {
           amount: c.spent,
           icon: CategoryMapper.getCategoryIcon(c.category),
           color: CategoryMapper.getCategoryColor(c.category),
+          transactions: categoryTransactions[c.category] || [],
+          count: (categoryTransactions[c.category] || []).length,
+          lastDate: (categoryTransactions[c.category] || []).at(-1)?.date || null,
         })));
 
     } catch (error) {
@@ -169,12 +201,7 @@ export default function InsightsScreen({ navigation, isDarkMode = true }) {
 
   const handleNavigate = (screen) => navigation.navigate(screen);
   const isCurrentMonth = isSameMonth(selectedDate, new Date());
-  const budgetPercentage = budget > 0 ? (expenses / budget) * 100 : 0;
 
-  const changeMonth = (direction) => {
-    if (direction === 'next' && isCurrentMonth) return;
-    setSelectedDate(prev => direction === 'next' ? addMonths(prev, 1) : subMonths(prev, 1));
-  };
 
   const renderEmptyState = (message) => (
     <View style={styles.emptyContainer}>
@@ -218,9 +245,12 @@ export default function InsightsScreen({ navigation, isDarkMode = true }) {
             theme={theme}
             budget={budget}
             expenses={expenses}
+            isPastMonth={!isCurrentMonth}
             onPressSetBudget={() => navigation.navigate('BudgetSetting')}
-            onPressCard={() => navigation.navigate('BudgetOverview')}
-          />
+            onPressCard={isCurrentMonth
+              ? () => navigation.navigate('BudgetOverview')
+              : null
+            } />
 
           {/* <View style={[styles.budgetCard, { backgroundColor: theme.cardElevated }]}>
             <View style={styles.budgetHeader}>
@@ -341,6 +371,8 @@ export default function InsightsScreen({ navigation, isDarkMode = true }) {
         selectedDate={selectedDate}
         onSelect={(newDate) => setSelectedDate(newDate)}
         theme={theme}
+        minDate={minDate}
+        activeMonths={activeMonths}
       />
 
       <BottomNavBar active="Insights" onNavigate={handleNavigate} isDarkMode={isDarkMode} />

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { StyleSheet, Text, View, TouchableOpacity, ScrollView, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { getThemedColors, COLORS } from '../constants/Colors';
@@ -19,13 +19,23 @@ import { useToast } from '../hooks/useToast';
 
 export default function TransactionDetailScreen({ route, navigation, isDarkMode = true }) {
   const theme = getThemedColors(isDarkMode);
-  const { db } = useDatabase();
+  const { isInitialized, db } = useDatabase();
   const { toast, showSuccess, showError, hideToast } = useToast();
 
   const { transaction } = route.params || {};
-  const [showEditModal, setShowEditModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [currentTransaction, setCurrentTransaction] = useState(transaction);
+
+  useEffect(() => {
+    const unsubscribe = navigation.addListener('focus', async () => {
+      if (!isInitialized || !db || !currentTransaction?.id) return;
+      try {
+        const updated = await db.getTransactionById(currentTransaction.id);
+        if (updated) setCurrentTransaction(updated);
+      } catch (e) { }
+    });
+    return unsubscribe;
+  }, [navigation]);
 
   if (!currentTransaction) {
     return (
@@ -43,24 +53,16 @@ export default function TransactionDetailScreen({ route, navigation, isDarkMode 
   const displayDate = currentTransaction.date ? format(parseISO(currentTransaction.date), 'dd MMM yyyy') : 'N/A';
   const displayTime = currentTransaction.date ? format(parseISO(currentTransaction.date), 'hh:mm a') : '';
 
-  const handleEdit = () => setShowEditModal(true);
-  const handleDelete = () => setShowDeleteModal(true);
-
-  const handleSaveEdit = async (updatedTransaction) => {
-    if (!updatedTransaction.amount || updatedTransaction.amount <= 0) {
-      showError('Invalid Amount', 'Please enter a valid amount');
-      return;
-    }
-    try {
-      await db.updateTransaction(updatedTransaction.id, updatedTransaction);
-      setCurrentTransaction(updatedTransaction);
-      setShowEditModal(false);
-      showSuccess('Updated!', 'Transaction updated successfully');
-      if (route.params?.onUpdate) route.params.onUpdate(updatedTransaction);
-    } catch (error) {
-      showError('Update Failed', 'Could not update transaction');
-    }
+  const handleEdit = () => {
+    navigation.navigate('EditTransaction', {
+      transaction: currentTransaction,
+      onSave: () => {
+        if (route.params?.onUpdate) route.params.onUpdate();
+      },
+    });
   };
+
+  const handleDelete = () => setShowDeleteModal(true);
 
   const confirmDelete = async () => {
     try {
@@ -91,7 +93,6 @@ export default function TransactionDetailScreen({ route, navigation, isDarkMode 
 
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
 
-        {/* Z-PATTERN ROW 1: Category Icon (Left) & Status Badge (Right) */}
         <View style={styles.zTopRow}>
           <View style={[styles.iconBox, { backgroundColor: categoryColor + '15' }]}>
             <Ionicons name={categoryIcon} size={32} color={categoryColor} />
@@ -107,7 +108,6 @@ export default function TransactionDetailScreen({ route, navigation, isDarkMode 
           </View>
         </View>
 
-        {/* Z-PATTERN ROW 2: Merchant Info (Left) & Amount (Right) */}
         <View style={styles.zMainRow}>
           <View style={styles.merchantContainer}>
             <Text style={[styles.merchantName, { color: theme.text, fontFamily: FONTS.bold }]} numberOfLines={2}>
@@ -130,13 +130,8 @@ export default function TransactionDetailScreen({ route, navigation, isDarkMode 
 
         <View style={[styles.divider, { backgroundColor: theme.border }]} />
 
-        {/* Transaction Body Information */}
-        <GeneralInfoCard
-          transaction={currentTransaction}
-          theme={theme}
-        />
+        <GeneralInfoCard transaction={currentTransaction} theme={theme} />
 
-        {/* SMS Footer Section */}
         {currentTransaction.raw_sms && (
           <View style={styles.footerSection}>
             <Text style={[styles.sectionLabel, { color: theme.textTertiary, fontFamily: FONTS.bold }]}>
@@ -152,15 +147,6 @@ export default function TransactionDetailScreen({ route, navigation, isDarkMode 
 
         <View style={{ height: 40 }} />
       </ScrollView>
-
-      <EditTransactionModal
-        visible={showEditModal}
-        transaction={currentTransaction}
-        theme={theme}
-        db={db}
-        onClose={() => setShowEditModal(false)}
-        onSave={handleSaveEdit}
-      />
 
       <PulseModal
         visible={showDeleteModal}

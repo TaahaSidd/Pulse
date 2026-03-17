@@ -13,8 +13,8 @@ export default function HelpCenterScreen({ navigation, isDarkMode = true }) {
 
     const allFaqs = [
         {
-            q: "How does Pulse read my SMS?",
-            a: "Pulse uses a local regex engine to scan for banking keywords. Your private messages never leave your phone or reach our servers."
+            q: "How does Pace read my SMS?",
+            a: "Pace uses a local regex engine to scan for banking keywords. Your private messages never leave your phone or reach our servers."
         },
         {
             q: "What banks are supported?",
@@ -22,15 +22,15 @@ export default function HelpCenterScreen({ navigation, isDarkMode = true }) {
         },
         {
             q: "Is my data backed up?",
-            a: "Pulse is offline-first. Your data is stored only in your phone's secure storage. We recommend exporting a backup if you plan to switch phones."
+            a: "Pace is offline-first. Your data is stored only in your phone's secure storage. We recommend exporting a backup if you plan to switch phones."
         },
         {
-            q: "Is Pulse free to use?",
-            a: "Yes, Pulse is currently free. We believe privacy-first finance should be accessible to everyone."
+            q: "Is Pace free to use?",
+            a: "Yes, Pace is currently free. We believe privacy-first finance should be accessible to everyone."
         },
         {
             q: "Why do you need SMS permissions?",
-            a: "We need this to automatically detect transactions. Pulse only filters for financial alerts and ignores your personal conversations."
+            a: "We need this to automatically detect transactions. Pace only filters for financial alerts and ignores your personal conversations."
         },
         {
             q: "Can I manually add transactions?",
@@ -38,22 +38,22 @@ export default function HelpCenterScreen({ navigation, isDarkMode = true }) {
         },
         {
             q: "What if a transaction is categorized wrongly?",
-            a: "You can tap on any transaction and select 'Edit' to change the category. Pulse will learn from your changes over time."
+            a: "You can tap on any transaction and select 'Edit' to change the category. Pace will learn from your changes over time."
         },
         {
             q: "How do I delete all my data?",
-            a: "Go to Account > Security & Privacy > Data Management. You can wipe all local data and resets the app to its original state."
+            a: "Go to Account > Security & Privacy > Data Management. You can wipe all local data and reset the app to its original state."
         },
         {
-            q: "Does Pulse require an internet connection?",
-            a: "No. Pulse is designed to work fully offline. Internet is only required if you choose to use the 'Send Feedback' or 'Update' features."
+            q: "Does Pace require an internet connection?",
+            a: "No. Pace is designed to work fully offline. Internet is only required if you choose to use the 'Send Feedback' or 'Update' features."
         },
         {
             q: "Is my bank account at risk?",
-            a: "Never. Pulse is a read-only app. We can't move money, access your bank login, or see your full account number."
+            a: "Never. Pace is a read-only app. We can't move money, access your bank login, or see your full account number."
         }
     ];
-
+    
     const filteredFaqs = allFaqs.filter(faq =>
         faq.q.toLowerCase().includes(search.toLowerCase()) ||
         faq.a.toLowerCase().includes(search.toLowerCase())
@@ -114,7 +114,7 @@ export default function HelpCenterScreen({ navigation, isDarkMode = true }) {
                             <Button
                                 title="Contact Support"
                                 variant="secondary"
-                                onPress={() => Linking.openURL('mailto:support@pulseapp.com')}
+                                onPress={() => Linking.openURL('mailto:hello.spicalabs@gmail.com')}
                                 fullWidth={true}
                             />
                         </View>
