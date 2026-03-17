@@ -11,19 +11,32 @@ export const DatabaseProvider = ({ children }) => {
     initializeDatabase();
   }, []);
 
-  const initializeDatabase = async () => {
-    try {
-      await TransactionDB.init();
-      setIsInitialized(true);
-      console.log('✅ Database ready');
-    } catch (err) {
-      console.error('❌ Database initialization error:', err);
-      setError(err);
+  const initializeDatabase = async (retries = 3) => {
+    for (let i = 0; i < retries; i++) {
+      try {
+        await TransactionDB.init();
+        setIsInitialized(true);
+        console.log('✅ Database ready');
+        return;
+      } catch (err) {
+        console.warn(`⚠️ DB init attempt ${i + 1} failed:`, err);
+        if (i < retries - 1) {
+          await new Promise(r => setTimeout(r, 500));
+        } else {
+          console.error('❌ Database initialization error:', err);
+          setError(err);
+        }
+      }
     }
   };
 
   return (
-    <DatabaseContext.Provider value={{ isInitialized, error, db: TransactionDB }}>
+    // Only expose db when fully initialized — prevents NullPointerException
+    <DatabaseContext.Provider value={{
+      isInitialized,
+      error,
+      db: isInitialized ? TransactionDB : null,
+    }}>
       {children}
     </DatabaseContext.Provider>
   );
