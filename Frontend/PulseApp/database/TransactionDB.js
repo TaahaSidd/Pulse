@@ -1,7 +1,7 @@
 // database/TransactionDB.js
 import * as SQLite from 'expo-sqlite';
 import BudgetDB from './BudgetDB';
-import SalaryDB from './SalaryDB'; // ✅ ADDED THIS LINE
+import SalaryDB from './SalaryDB';
 
 /**
  * SQLite Database Service for Pulse
@@ -73,7 +73,6 @@ class TransactionDB {
    */
   async saveTransaction(transaction) {
     try {
-      // Check if hash already exists (duplicate detection)
       const existing = await this.db.getFirstAsync(
         'SELECT id FROM transactions WHERE hash = ?',
         [transaction.hash]
@@ -114,6 +113,46 @@ class TransactionDB {
       return { success: true, id: result.lastInsertRowId };
     } catch (error) {
       console.error('❌ Error saving transaction:', error);
+      throw error;
+    }
+  }
+
+
+  /**
+   * Update an existing transaction (Merchant, Amount, Category, Date, etc.)
+   */
+  async updateTransaction(id, updatedData) {
+    console.log('🔵 DB updateTransaction - id:', id, 'type:', updatedData.type); // <-- ADD
+
+    try {
+      if (!this.db) throw new Error('Database not initialized');
+
+      const result = await this.db.runAsync(
+        `UPDATE transactions
+        SET amount = ?,
+        merchant = ?,
+        category = ?,
+        type = ?,
+        date = ?,
+        bank = ?,
+        updated_at = ?
+        WHERE id = ?`,
+        [
+          updatedData.amount,
+          updatedData.merchant,
+          updatedData.category,
+          updatedData.type,                        // ✅ 
+          updatedData.date,
+          updatedData.bank_name || updatedData.bank,
+          new Date().toISOString(),
+          id
+        ]
+      );
+
+      console.log('✅ Transaction updated successfully');
+      return { success: true, changes: result.changes };
+    } catch (error) {
+      console.error('❌ Error updating transaction in DB:', error);
       throw error;
     }
   }
@@ -368,6 +407,33 @@ class TransactionDB {
     } catch (error) {
       console.error('❌ Error deleting all transactions:', error);
       throw error;
+    }
+  }
+
+  //Get Accounts.
+  async getDetectedAccounts() {
+    try {
+      const allData = await this.getAllTransactions();
+      const accountMap = {};
+
+      allData.forEach(t => {
+        const bankName = t.bank || 'Other';
+        if (!accountMap[bankName]) {
+          accountMap[bankName] = {
+            id: bankName,
+            name: bankName,
+            accNo: t.account_number ? `XX${t.account_number.slice(-4)}` : 'Digital Wallet',
+            lastAmount: t.amount,
+            type: t.type,
+            lastDate: t.date
+          };
+        }
+      });
+
+      return Object.values(accountMap);
+    } catch (error) {
+      console.error("Error grouping accounts:", error);
+      return [];
     }
   }
 
