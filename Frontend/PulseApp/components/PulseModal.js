@@ -1,8 +1,7 @@
 import React from 'react';
-import { View, Text, Modal, StyleSheet } from 'react-native';
+import { View, Text, Modal, StyleSheet, TouchableOpacity } from 'react-native';
 import { getThemedColors, COLORS } from '../constants/Colors';
 import { FONTS } from '../constants/Fonts';
-import Button from './Button';
 
 const PulseModal = ({
     visible,
@@ -23,10 +22,11 @@ const PulseModal = ({
             case 'logout':
                 return {
                     title: title || 'Taking a break?',
-                    message: message || "We'll keep your pulse steady while you're gone.",
+                    message: message || "We'll keep your data safe while you're gone.",
                     primaryButtonText: primaryButtonText || 'Log Out',
-                    secondaryButtonText: secondaryButtonText || 'Go Back',
-                    variant: 'secondary',
+                    secondaryButtonText: secondaryButtonText || 'Cancel',
+                    primaryColor: theme.text,
+                    primaryTextColor: theme.bg,
                 };
             case 'delete':
                 return {
@@ -34,55 +34,61 @@ const PulseModal = ({
                     message: message || 'This action is permanent. Are you absolutely sure?',
                     primaryButtonText: primaryButtonText || 'Delete',
                     secondaryButtonText: secondaryButtonText || 'Cancel',
-                    variant: 'danger',
+                    primaryColor: '#EF4444',
+                    primaryTextColor: '#fff',
                 };
             default:
                 return {
                     title: title || 'Awesome!',
+                    message: message,
                     primaryButtonText: primaryButtonText || 'Continue',
-                    variant: 'primary',
-                    showSecondary: false,
+                    secondaryButtonText: secondaryButtonText || null,
+                    primaryColor: COLORS.primary,
+                    primaryTextColor: '#000',
                 };
         }
     };
 
     const config = getConfig();
+    const showSecondary = !!(onSecondaryPress || config.secondaryButtonText);
 
     return (
         <Modal transparent visible={visible} animationType="fade" onRequestClose={onClose}>
             <View style={styles.overlay}>
                 <View style={[styles.container, { backgroundColor: theme.card, borderColor: theme.border }]}>
 
-                    <View style={styles.content}>
-                        <Text style={[styles.title, { color: theme.text, fontFamily: FONTS.bold }]}>
-                            {config.title}
-                        </Text>
+                    <Text style={[styles.title, { color: theme.text, fontFamily: FONTS.bold }]}>
+                        {config.title}
+                    </Text>
 
-                        {(message || config.message) && (
-                            <Text style={[styles.message, { color: theme.textSecondary, fontFamily: FONTS.regular }]}>
-                                {message || config.message}
-                            </Text>
-                        )}
-                    </View>
+                    {config.message && (
+                        <Text style={[styles.message, { color: theme.textSecondary, fontFamily: FONTS.regular }]}>
+                            {config.message}
+                        </Text>
+                    )}
 
                     <View style={styles.footer}>
-
-                        <Button
-                            title={config.primaryButtonText}
-                            variant={config.variant}
-                            onPress={onPrimaryPress || onClose}
-                            fullWidth
-                        />
-
-                        {(onSecondaryPress || config.secondaryButtonText) && (
-                            <Button
-                                title={config.secondaryButtonText}
-                                variant="ghost"
+                        {showSecondary && (
+                            <TouchableOpacity
+                                style={[styles.btn, { backgroundColor: theme.cardElevated, flex: 1 }]}
                                 onPress={onSecondaryPress || onClose}
-                                fullWidth
-                                textStyle={{ color: theme.textTertiary }}
-                            />
+                                activeOpacity={0.7}
+                            >
+                                <Text style={[styles.btnText, { color: theme.textSecondary, fontFamily: FONTS.medium }]}>
+                                    {config.secondaryButtonText}
+                                </Text>
+                            </TouchableOpacity>
                         )}
+
+                        <TouchableOpacity
+                            style={[styles.btn, { backgroundColor: config.primaryColor, flex: showSecondary ? 1 : undefined, minWidth: 120 }]}
+                            onPress={onPrimaryPress || onClose}
+                            activeOpacity={0.7}
+                        >
+                            <Text style={[styles.btnText, { color: config.primaryTextColor, fontFamily: FONTS.bold }]}>
+                                {config.primaryButtonText}
+                            </Text>
+                        </TouchableOpacity>
                     </View>
                 </View>
             </View>
@@ -93,7 +99,7 @@ const PulseModal = ({
 const styles = StyleSheet.create({
     overlay: {
         flex: 1,
-        backgroundColor: 'rgba(0, 0, 0, 0.8)',
+        backgroundColor: 'rgba(0,0,0,0.8)',
         justifyContent: 'center',
         alignItems: 'center',
         padding: 30,
@@ -110,25 +116,31 @@ const styles = StyleSheet.create({
         shadowRadius: 16,
         elevation: 20,
     },
-    content: {
-        alignItems: 'center',
-        marginBottom: 24,
-    },
     title: {
         fontSize: 22,
         textAlign: 'center',
-        marginBottom: 10,
+        marginBottom: 8,
         letterSpacing: -0.5,
     },
     message: {
-        fontSize: 15,
+        fontSize: 14,
         textAlign: 'center',
-        lineHeight: 22,
+        lineHeight: 21,
         opacity: 0.8,
+        marginBottom: 24,
     },
     footer: {
-        width: '100%',
-        gap: 4,
+        flexDirection: 'row',
+        gap: 10,
+    },
+    btn: {
+        paddingVertical: 13,
+        borderRadius: 14,
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    btnText: {
+        fontSize: 14,
     },
 });
 

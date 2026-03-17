@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
     View,
     Text,
@@ -10,9 +10,9 @@ import {
     Dimensions
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { format, parseISO } from 'date-fns';
 import { FONTS } from '../constants/Fonts';
 import { COLORS } from '../constants/Colors';
-import Button from './Button';
 import CategoryMapper from '../utils/CategoryMapper';
 
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
@@ -23,141 +23,187 @@ const TransactionFilterModal = ({
     theme,
     onApply,
     onReset,
+    transactions = [], // ← real tx data passed from parent
+    isDarkMode = true,
 }) => {
     const [activeTab, setActiveTab] = useState('month');
     const [selectedFilters, setSelectedFilters] = useState({
         month: [],
         category: [],
-        status: [],
-        paymentMode: [],
-        account: []
     });
 
-    const dynamicCategories = CategoryMapper.getAllCategories();
+    // ── Derive real months from transactions ──────────────
+    const realMonths = useMemo(() => {
+        const seen = new Set();
+        transactions.forEach(t => {
+            try {
+                const label = format(parseISO(t.date), 'MMMM yyyy'); // "March 2026"
+                seen.add(label);
+            } catch { }
+        });
+        // Sort newest first
+        return Array.from(seen).sort((a, b) => {
+            const da = new Date(a);
+            const db = new Date(b);
+            return db - da;
+        });
+    }, [transactions]);
+
+    // ── Derive real categories from transactions ──────────
+    const realCategories = useMemo(() => {
+        const seen = new Set();
+        transactions.forEach(t => {
+            if (t.category) seen.add(t.category);
+        });
+        return Array.from(seen).sort();
+    }, [transactions]);
 
     const filterTypes = [
-        { key: 'month', label: 'Month', options: ['February 2026', 'January 2026', 'December 2025', 'November 2025'] },
-        { key: 'category', label: 'Category', options: dynamicCategories },
-        { key: 'status', label: 'Status', options: ['Completed', 'Pending', 'Failed'] },
-        { key: 'paymentMode', label: 'Mode', options: ['UPI', 'Card', 'Cash'] },
-        { key: 'account', label: 'Account', options: ['Savings', 'Credit Card'] },
+        { key: 'month', label: 'Month', options: realMonths },
+        { key: 'category', label: 'Category', options: realCategories },
     ];
 
     const toggleOption = (option) => {
         setSelectedFilters(prev => {
-            const currentItems = prev[activeTab];
-            const isSelected = currentItems.includes(option);
+            const current = prev[activeTab];
+            const isSelected = current.includes(option);
             return {
                 ...prev,
                 [activeTab]: isSelected
-                    ? currentItems.filter(item => item !== option)
-                    : [...currentItems, option]
+                    ? current.filter(i => i !== option)
+                    : [...current, option],
             };
         });
     };
 
     const handleReset = () => {
-        setSelectedFilters({ month: [], category: [], status: [], paymentMode: [], account: [] });
+        setSelectedFilters({ month: [], category: [] });
         onReset();
+    };
+
+    const handleApply = () => {
+        onApply(selectedFilters);
+        onClose();
     };
 
     const totalSelected = Object.values(selectedFilters).flat().length;
 
+    // ── Left column bg — fix for light mode ──────────────
+    const leftColBg = isDarkMode ? theme.bg : theme.cardElevated;
+
     return (
         <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
-            {/* The Pressable here detects clicks outside the modal content */}
             <Pressable style={styles.modalOverlay} onPress={onClose}>
-
-                {/* Pressable with null onPress stops click propagation inside the modal */}
-                <Pressable style={[styles.modalContainer, { backgroundColor: theme.card }]} onPress={(e) => e.stopPropagation()}>
-
-                    {/* Grab Handle for UX */}
+                <Pressable
+                    style={[styles.modalContainer, { backgroundColor: theme.card }]}
+                    onPress={e => e.stopPropagation()}
+                >
+                    {/* Handle */}
                     <View style={styles.handleContainer}>
                         <View style={[styles.handle, { backgroundColor: theme.border }]} />
                     </View>
 
                     {/* Header */}
                     <View style={[styles.header, { borderBottomColor: theme.border }]}>
-                        <Text style={[styles.headerTitle, { color: theme.text }]}>Filters</Text>
+                        <Text style={[styles.headerTitle, { color: theme.text, fontFamily: FONTS.bold }]}>
+                            Filters
+                        </Text>
                         <TouchableOpacity onPress={onClose} hitSlop={12}>
                             <Ionicons name="close" size={22} color={theme.textTertiary} />
                         </TouchableOpacity>
                     </View>
 
                     <View style={styles.splitView}>
-                        {/* Left Column */}
-                        <View style={[
-                            styles.leftColumn,
-                            { backgroundColor: theme.isDarkMode ? theme.card : theme.cardElevated }
-                        ]}>
-                            {filterTypes.map((tab) => {
-                                const isSelected = activeTab === tab.key;
+                        {/* Left tabs */}
+                        <View style={[styles.leftColumn, { backgroundColor: leftColBg }]}>
+                            {filterTypes.map(tab => {
+                                const isActive = activeTab === tab.key;
+                                const count = selectedFilters[tab.key].length;
                                 return (
                                     <Pressable
                                         key={tab.key}
                                         onPress={() => setActiveTab(tab.key)}
                                         style={[
                                             styles.tabItem,
-                                            isSelected && { backgroundColor: theme.card, borderLeftWidth: 3, borderLeftColor: COLORS.primary }
+                                            isActive && {
+                                                backgroundColor: theme.card,
+                                                borderLeftWidth: 3,
+                                                borderLeftColor: COLORS.primary,
+                                            }
                                         ]}
                                     >
                                         <Text style={[
                                             styles.tabText,
                                             {
-                                                color: isSelected ? COLORS.primary : theme.textSecondary,
-                                                fontFamily: isSelected ? FONTS.bold : FONTS.medium
+                                                color: isActive ? COLORS.primary : theme.textSecondary,
+                                                fontFamily: isActive ? FONTS.bold : FONTS.medium,
                                             }
                                         ]}>
                                             {tab.label}
+                                            {count > 0 ? ` (${count})` : ''}
                                         </Text>
                                     </Pressable>
                                 );
                             })}
                         </View>
 
-                        {/* Right Column */}
+                        {/* Right options */}
                         <View style={styles.rightColumn}>
-                            <FlatList
-                                data={filterTypes.find(t => t.key === activeTab)?.options}
-                                keyExtractor={(item) => item}
-                                showsVerticalScrollIndicator={false}
-                                contentContainerStyle={{ paddingVertical: 4 }}
-                                renderItem={({ item }) => {
-                                    const isChecked = selectedFilters[activeTab].includes(item);
-                                    const accentColor = activeTab === 'category'
-                                        ? CategoryMapper.getCategoryColor(item)
-                                        : COLORS.primary;
+                            {filterTypes.find(t => t.key === activeTab)?.options.length === 0 ? (
+                                <View style={styles.emptyOptions}>
+                                    <Text style={{ color: theme.textTertiary, fontFamily: FONTS.regular, fontSize: 13 }}>
+                                        No data available
+                                    </Text>
+                                </View>
+                            ) : (
+                                <FlatList
+                                    data={filterTypes.find(t => t.key === activeTab)?.options}
+                                    keyExtractor={item => item}
+                                    showsVerticalScrollIndicator={false}
+                                    contentContainerStyle={{ paddingVertical: 4 }}
+                                    renderItem={({ item }) => {
+                                        const isChecked = selectedFilters[activeTab].includes(item);
+                                        const accentColor = activeTab === 'category'
+                                            ? CategoryMapper.getCategoryColor(item)
+                                            : COLORS.primary;
 
-                                    return (
-                                        <TouchableOpacity
-                                            activeOpacity={0.6}
-                                            style={styles.optionRow}
-                                            onPress={() => toggleOption(item)}
-                                        >
-                                            <View style={styles.optionLabelContainer}>
-                                                {activeTab === 'category' && (
-                                                    <Ionicons
-                                                        name={CategoryMapper.getCategoryIcon(item)}
-                                                        size={14}
-                                                        color={accentColor}
-                                                        style={{ marginRight: 8 }}
-                                                    />
-                                                )}
-                                                <Text numberOfLines={1} style={[styles.optionText, { color: isChecked ? theme.text : theme.textSecondary }]}>
-                                                    {item}
-                                                </Text>
-                                            </View>
-                                            <View style={[
-                                                styles.checkbox,
-                                                { borderColor: isChecked ? accentColor : theme.border },
-                                                isChecked && { backgroundColor: accentColor }
-                                            ]}>
-                                                {isChecked && <Ionicons name="checkmark" size={12} color="white" />}
-                                            </View>
-                                        </TouchableOpacity>
-                                    );
-                                }}
-                            />
+                                        return (
+                                            <TouchableOpacity
+                                                activeOpacity={0.6}
+                                                style={styles.optionRow}
+                                                onPress={() => toggleOption(item)}
+                                            >
+                                                <View style={styles.optionLabelContainer}>
+                                                    {activeTab === 'category' && (
+                                                        <Ionicons
+                                                            name={CategoryMapper.getCategoryIcon(item)}
+                                                            size={14}
+                                                            color={accentColor}
+                                                            style={{ marginRight: 8 }}
+                                                        />
+                                                    )}
+                                                    <Text
+                                                        numberOfLines={1}
+                                                        style={[
+                                                            styles.optionText,
+                                                            { color: isChecked ? theme.text : theme.textSecondary, fontFamily: FONTS.medium }
+                                                        ]}
+                                                    >
+                                                        {item}
+                                                    </Text>
+                                                </View>
+                                                <View style={[
+                                                    styles.checkbox,
+                                                    { borderColor: isChecked ? accentColor : theme.border },
+                                                    isChecked && { backgroundColor: accentColor }
+                                                ]}>
+                                                    {isChecked && <Ionicons name="checkmark" size={12} color="white" />}
+                                                </View>
+                                            </TouchableOpacity>
+                                        );
+                                    }}
+                                />
+                            )}
                         </View>
                     </View>
 
@@ -167,11 +213,12 @@ const TransactionFilterModal = ({
                             onPress={handleReset}
                             style={[styles.footerBtn, { backgroundColor: theme.cardElevated, borderColor: theme.border, borderWidth: 1 }]}
                         >
-                            <Text style={{ color: theme.textTertiary, fontSize: 13, fontFamily: FONTS.medium }}>Reset</Text>
+                            <Text style={{ color: theme.textTertiary, fontSize: 13, fontFamily: FONTS.medium }}>
+                                Reset
+                            </Text>
                         </TouchableOpacity>
-
                         <TouchableOpacity
-                            onPress={() => { onApply(selectedFilters); onClose(); }}
+                            onPress={handleApply}
                             style={[styles.footerBtn, { backgroundColor: COLORS.primary }]}
                         >
                             <Text style={{ color: '#000', fontSize: 13, fontFamily: FONTS.bold }}>
@@ -192,21 +239,13 @@ const styles = StyleSheet.create({
         justifyContent: 'flex-end',
     },
     modalContainer: {
-        height: SCREEN_HEIGHT * 0.55, // 55% height - perfect for one-thumb reach
+        height: SCREEN_HEIGHT * 0.55,
         borderTopLeftRadius: 24,
         borderTopRightRadius: 24,
         overflow: 'hidden',
     },
-    handleContainer: {
-        alignItems: 'center',
-        paddingVertical: 8,
-    },
-    handle: {
-        width: 36,
-        height: 4,
-        borderRadius: 2,
-        opacity: 0.5,
-    },
+    handleContainer: { alignItems: 'center', paddingVertical: 8 },
+    handle: { width: 36, height: 4, borderRadius: 2, opacity: 0.5 },
     header: {
         flexDirection: 'row',
         justifyContent: 'space-between',
@@ -215,28 +254,12 @@ const styles = StyleSheet.create({
         paddingBottom: 12,
         borderBottomWidth: 1,
     },
-    headerTitle: {
-        fontSize: 16,
-        fontFamily: FONTS.bold,
-    },
-    splitView: {
-        flex: 1,
-        flexDirection: 'row',
-    },
-    leftColumn: {
-        width: '28%',
-    },
-    rightColumn: {
-        flex: 1,
-        paddingHorizontal: 4,
-    },
-    tabItem: {
-        paddingVertical: 14,
-        paddingHorizontal: 12,
-    },
-    tabText: {
-        fontSize: 12,
-    },
+    headerTitle: { fontSize: 16 },
+    splitView: { flex: 1, flexDirection: 'row' },
+    leftColumn: { width: '30%' },
+    rightColumn: { flex: 1, paddingHorizontal: 4 },
+    tabItem: { paddingVertical: 14, paddingHorizontal: 12 },
+    tabText: { fontSize: 12 },
     optionRow: {
         flexDirection: 'row',
         justifyContent: 'space-between',
@@ -244,15 +267,8 @@ const styles = StyleSheet.create({
         paddingVertical: 10,
         paddingHorizontal: 16,
     },
-    optionLabelContainer: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        flex: 1,
-    },
-    optionText: {
-        fontSize: 13,
-        fontFamily: FONTS.medium,
-    },
+    optionLabelContainer: { flexDirection: 'row', alignItems: 'center', flex: 1 },
+    optionText: { fontSize: 13 },
     checkbox: {
         width: 16,
         height: 16,
@@ -276,10 +292,11 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
         alignItems: 'center',
     },
-    flexButton: {
+    emptyOptions: {
         flex: 1,
-        height: 40,
-    }
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
 });
 
 export default TransactionFilterModal;

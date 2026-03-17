@@ -64,7 +64,9 @@ const RankedPillar = ({ item, rank, theme, onPress, index }) => {
                     }
                 ]}>
                     {/* Floating Icon Circle */}
-                    <View style={[styles.iconCircle, { backgroundColor: 'rgba(255,255,255,0.25)' }]}>
+                    <View style={[styles.iconCircle, {
+                        backgroundColor: 'rgba(255,255,255,0.15)'
+                    }]}>
                         <Ionicons
                             name={item.icon || 'receipt-outline'}
                             size={isFirst ? 26 : 22}

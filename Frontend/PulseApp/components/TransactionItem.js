@@ -82,7 +82,6 @@ const TransactionItem = ({
                             </Text>
                             {showSubtitle && (
                                 <Text style={[styles.txSubtitle, { color: theme.textTertiary, fontFamily: FONTS.medium }]}>
-                                    {/* ✅ CHANGE 2: Show just category if no bank (for breakdown) */}
                                     {item.bank ? `${item.category} • ${item.bank}` : item.category}
                                 </Text>
                             )}
@@ -99,7 +98,6 @@ const TransactionItem = ({
                 </TouchableOpacity>
             </Animated.View>
 
-            {/* ✅ CHANGE 3: Only show delete modal if onDelete is provided */}
             {onDelete && (
                 <PulseModal
                     visible={isDeleteModalVisible}
