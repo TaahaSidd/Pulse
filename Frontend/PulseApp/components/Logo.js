@@ -1,0 +1,39 @@
+import React from 'react';
+import { Animated } from 'react-native';
+import Svg, { Path } from 'react-native-svg';
+
+const AnimatedPath = Animated.createAnimatedComponent(Path);
+
+const PulseLogo = ({
+    strokeAnim,
+    fillOpacity,
+    scaleAnim,
+    isDarkMode = true
+}) => {
+    const pathData = "M57.1646 76.4811C50.7215 77.3848 44.639 80.5106 41.1781 86.0199L36.0108 94.2453C35.7655 94.6359 35.3366 94.873 34.8753 94.873C34.0357 94.873 33.4026 94.1101 33.5573 93.2849L38.4414 67.2343C39.1901 63.241 42.6767 60.3473 46.7396 60.3473C52.3179 60.3473 56.8256 59.4457 60.2628 57.6426C63.6999 55.8396 66.2073 53.3603 67.7851 50.2049C69.4191 46.9931 70.2361 43.3306 70.2361 39.2173C70.2361 35.3294 69.4191 31.695 67.7851 28.3142C66.2073 24.8771 63.6999 22.1161 60.2628 20.0312C56.8256 17.9464 52.3179 16.904 46.7396 16.904H42.0995C30.1256 16.904 19.9836 25.7296 18.3295 37.5887L6.82016 120.108C6.58401 121.801 5.13602 123.061 3.4265 123.061C1.5341 123.061 0 121.527 0 119.635V24C0 10.7452 10.7452 0 24 0H46.7396C56.2622 0 64.3479 1.6904 70.9968 5.0712C77.7021 8.39565 82.8015 13.0161 86.2949 18.9325C89.7884 24.7925 91.5352 31.4978 91.5352 39.0482C91.5352 46.9931 89.7884 53.8111 86.2949 59.5021C82.8015 65.1931 77.7021 69.56 70.9968 72.6027C66.925 74.4661 62.3142 75.7589 57.1646 76.4811Z";
+
+    return (
+        <Animated.View style={{ transform: [{ scale: scaleAnim }] }}>
+            <Svg width="92" height="124" viewBox="0 0 92 124">
+                {/* Stroke animation path */}
+                <AnimatedPath
+                    d={pathData}
+                    stroke="#8CF364"
+                    strokeWidth="1.2"
+                    fill="transparent"
+                    strokeDasharray="1000"
+                    strokeDashoffset={strokeAnim}
+                    strokeLinecap="round"
+                />
+                {/* Fill path */}
+                <AnimatedPath
+                    d={pathData}
+                    fill="#8CF364"
+                    opacity={fillOpacity}
+                />
+            </Svg>
+        </Animated.View>
+    );
+};
+
+export default PulseLogo;
