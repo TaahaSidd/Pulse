@@ -1,12 +1,13 @@
 // constants/Colors.js
 
 export const COLORS = {
-    // Primary Brand Colors (The "Pulse" Identity) - GREEN
-    primary: '#8CF364',
-    primaryDark: '#6FD947',
-    primaryLight: '#A3F67D',
-    primaryLighter: '#BAF896',
-    primaryLightest: '#E8FCE0',
+    // Primary Brand Colors (The "Pulse" Identity) - EMERALD GREEN
+    primary: '#10B981',           // ← Changed from #8CF364
+    primaryDark: '#059669',       // Darker emerald
+    primaryLight: '#34D399',      // Lighter emerald  
+    primaryLighter: '#6EE7B7',    // Even lighter
+    primaryLightest: '#D1FAE5',   // Lightest emerald tint
+
 
     // Secondary & Accent
     secondary: '#6366F1',
@@ -16,12 +17,14 @@ export const COLORS = {
     accentDark: '#E6A500',
     accentLight: '#FFC933',
 
+
     // Semantic Colors (Feedback)
-    success: '#8CF364',
+    success: '#10B981',           // ← Matches primary
     error: '#EF4444',
     warning: '#F59E0B',
     info: '#3B82F6',
     danger: '#FF3B30',
+
 
     // Neutral Palette
     white: '#FFFFFF',
@@ -41,42 +44,46 @@ export const COLORS = {
         900: '#111827',
     },
 
+
     // Mode Specific: DARK
     dark: {
-        bg: '#252525',              // Outer Space
+        bg: '#252525',
         bgElevated: '#2E2E2E',
         card: '#303030',
         cardElevated: '#3A3A3A',
         border: '#404040',
         divider: '#4A4A4A',
-        text: '#FAF9F6',            // Off-white for text
+        text: '#FAF9F6',
         textSecondary: '#E0E0E0',
         textTertiary: 'rgba(224, 224, 224, 0.6)',
         overlay: 'rgba(0, 0, 0, 0.6)',
     },
 
+
     // Mode Specific: LIGHT
     light: {
-        bg: '#FAF9F6',              // Off-white background
+        bg: '#FAF9F6',
         bgElevated: '#FFFFFF',
         card: '#FFFFFF',
         cardElevated: '#F5F5F5',
         border: '#E5E5E5',
         divider: '#EFEFEF',
-        text: '#252525',            // Outer Space for text
+        text: '#252525',
         textSecondary: '#4A4A4A',
         textTertiary: '#6B6B6B',
         overlay: 'rgba(37, 37, 37, 0.3)',
     },
 
-    // Gradients
+
+    // Gradients - Updated for Emerald
     gradients: {
-        primary: ['#8CF364', '#6FD947'],
-        greenGlow: ['#8CF364', '#A3F67D'],
+        primary: ['#10B981', '#059669'],      // ← Emerald gradient
+        greenGlow: ['#10B981', '#34D399'],    // ← Emerald glow
         sunset: ['#FF6B6B', '#FFE66D'],
         darkToLight: ['#252525', '#3A3A3A'],
     },
 };
+
 
 export const getThemedColors = (isDarkMode) => {
     const theme = isDarkMode ? COLORS.dark : COLORS.light;
